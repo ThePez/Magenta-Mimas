@@ -1,0 +1,11 @@
+<tbody>
+    {% for beacon in beacons %}
+    <tr>
+        <td>{{ beacon["address"] }}</td>
+        <td>{{ beacon["major"] }}</td>
+        <td>{{ beacon["minor"] }}</td>
+        <td>{{ beacon["rssi"] }}</td>
+        <td>{{ beacon["time"] }}</td>
+    </tr>
+    {% endfor %}      
+</tbody>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Flask app</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    </head>
+    <body>
+        <header>
+            <div class="container">
+                <h1 class="logo">Localisation Dashboard</h1>
+                <strong><nav>
+                    <ul class="menu">
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/sniffer">Sniffer</a></li>
+                    </ul>
+                </nav></strong>
+            </div>
+        </header>
+        <div>
+            {% block content %} {% endblock %}
+        </div>
+    </body>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <script>
+                {% for message in messages %}
+                    alert("{{ message }}");
+                {% endfor %}
+            </script>
+        {% endif %}
+    {% endwith %}
+</html>

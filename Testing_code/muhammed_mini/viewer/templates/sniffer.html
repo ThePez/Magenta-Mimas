@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="flex-container">
+        <div class="split">
+            <h2>Sniffer Mode</h2>
+            <pre id="sniffer"></pre>
+
+            <script>window.sniffer_mode = {{ sniffer_mode | tojson }};</script>
+            <script>
+                function updateTable() {
+                  const sniffer_mode = window.sniffer_mode;
+                  if (sniffer_mode) {
+                    console.log("Here");
+                    fetch("/sniffer_get")
+                    .then(res => res.text())
+                    .then(html => {
+                      const oldTbody = document.querySelector("tbody");
+                      oldTbody.outerHTML = html;
+                    });
+                  }
+                }
+
+                setInterval(updateTable, 200);
+                updateTable();
+            </script>
+
+            <form id="setSniffer" method="GET" action="/sniffer">
+                <button type="submit" name="action" value="enable">
+                    Enable Sniffer Mode
+                </button>
+                <br><br>
+                <button type="submit" name="action" value="disable">
+                    Disable Sniffer Mode
+                </button>
+                <br>
+            </form>
+
+            {% if sniffer_mode %}
+
+            <br><br>
+            <table id="sniffer_table" class="styled-table">
+                <thead>
+                    <tr>
+                        <th>MAC Address</th>
+                        <th>Major</th>
+                        <th>Minor</th>
+                        <th>RSSI</th>
+                        <th>Time Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody id="sniffer-table-body" />
+            </table>
+
+            {% else %}
+                <h3>Sniffer Mode Inactive</h3>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
