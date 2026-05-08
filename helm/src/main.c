@@ -10,6 +10,7 @@
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/services/nus.h>
 
+// #define WHITELIST // Enables connection whitelisting
 #define CHIP_A // Swaps the name
 
 #ifdef CHIP_A
@@ -64,6 +65,7 @@ int set_static_address(void)
     return 0;
 }
 
+#ifdef WHITELIST
 /* ========================================================================== */
 /* Whitelist / Filter Accept List                                             */
 /* ========================================================================== */
@@ -85,6 +87,7 @@ static int configure_accept_list(void)
     printk("[INFO] Accept list configured\n");
     return 0;
 }
+#endif
 
 /* ========================================================================== */
 /* Advertising Data                                                           */
@@ -227,18 +230,22 @@ int main(void)
         return (err);
     }
 
+    // Setup the NUS ad params
+    adv_param = *BT_LE_ADV_CONN_FAST_1;
+
+#ifdef WHITELIST
     // Accept list must be configured after bt_enable
     if (configure_accept_list()) {
         printk("[ERROR] Failed to configure accept list\n");
         return (-1);
     }
 
+    // Add white-list options if filtering
+    adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN | BT_LE_ADV_OPT_FILTER_SCAN_REQ;
+#endif
+
     // New MTU size
     bt_gatt_cb_register(&gatt_callbacks);
-
-    // Add white-list options
-    adv_param = *BT_LE_ADV_CONN_FAST_1; // Have to macro initalise first
-    adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN | BT_LE_ADV_OPT_FILTER_SCAN_REQ;
 
     // Start NUS advertising so base chip can connect
     err = bt_le_adv_start(&adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
