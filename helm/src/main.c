@@ -26,6 +26,42 @@ struct k_work_delayable timeout_work;
 static struct bt_conn *current_conn = NULL;
 static uint64_t connect_time = 0;
 
+static const bt_addr_le_t base_addr = {
+    .type = BT_ADDR_LE_RANDOM, .a.val = {0xBB, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
+    // FF:EE:DD:CC:BB:BB  <-- replace with Base address
+};
+
+/* Helm chip addresses - hardcoded for filtering */
+static const bt_addr_le_t helm_addr[2] = {
+    [0] =
+        {
+            .type = BT_ADDR_LE_RANDOM, .a.val = {0x56, 0x63, 0xCD, 0x44, 0x4A, 0xE1}
+            // E1:4A:44:CD:63:56 <-- replace with Helm_A address
+        },
+    [1] =
+        {
+            .type = BT_ADDR_LE_RANDOM, .a.val = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
+            // FF:EE:DD:CC:BB:AA  <-- replace with Helm_B address
+        },
+};
+
+int set_static_address(void)
+{
+#ifdef CHIP_A
+    int slot = 0;
+#else
+    int slot = 1;
+#endif
+
+    int err = bt_id_create((bt_addr_le_t *)&helm_addr[slot], NULL);
+    if (err < 0) {
+        printk("Failed to create identity: %d\n", err);
+        return err;
+    }
+
+    return 0;
+}
+
 /* ========================================================================== */
 /* Advertising Data                                                           */
 /* ========================================================================== */
@@ -141,6 +177,11 @@ int main(void)
 {
     printk("CSSE4011 Project %s Chip\r\n", DEVICE_NAME);
 
+    if (set_static_address()) {
+        printk("[ERROR] Failed to set static MAC\n");
+        return (-1);
+    }
+
     // Register NUS callbacks before bt_enable
     int err = bt_nus_cb_register(&nus_listener, NULL);
     if (err) {
@@ -173,8 +214,8 @@ int main(void)
     }
 
     printk("[INFO] Network initialization complete\n");
-    
-    const char* const data = "hello world";
+
+    const char *const data = "hello world";
     while (1) {
         // Send via NUS
         int ret = bt_nus_send(NULL, data, strlen(data));
