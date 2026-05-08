@@ -135,7 +135,7 @@ static int find_first_free_slot(void)
 static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params *params,
                            const void *data, uint16_t length)
 {
-    /* data == NULL means we got unsubscribed (e.g. mobile disconnected) */
+    /* data == NULL means we got unsubscribed (e.g. helm_a/b disconnected) */
     if (!data) {
         printk("[WARN] Unsubscribed\n");
         params->value_handle = 0U;

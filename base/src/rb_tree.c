@@ -38,9 +38,6 @@ static uint8_t initialised = 0;
 // Size of the red black tree
 static int size = NUM_BEACONS;
 
-// Buffer used for print_node function
-static char json_buf[JSON_BUF_LEN];
-
 // Mutex Lock to protect the tree from curuption
 K_MUTEX_DEFINE(rbLock);
 
@@ -224,73 +221,6 @@ struct beacon_data *get_rb_node(uint32_t target)
     rb_unlock();
     return (NULL);
 }
-
-// /* Prints one node by name, or all nodes if all == true. */
-// void print_rb_node(char *name, bool all)
-// {
-//     /* Start of json list */
-//     memset(json_buf, 0, sizeof(json_buf)); // 256 len
-//     struct cmd_json val = {.cmd = "view", .sub = "start"};
-//     encode_json_cmd(&val, json_buf, sizeof(json_buf));
-// #ifdef UART_USB_C
-//     print_uart(json_buf);
-//     print_uart("\n");
-// #else
-//     printk("%s\n", json_buf);
-// #endif
-//     // Lock the tree
-//     if (rb_lock()) {
-//         printk("[ERROR] rbTree Mutex unavailable\n");
-//         goto unlock;
-//     }
-//     struct beacon_data *node;
-//     /* Send one packet per node */
-//     RB_FOR_EACH_CONTAINER(&tree, node, rbnode) {
-//         if (all || (name && !strcmp(name, node->name))) {
-//             /* Small string buffers for each field */
-//             char mac_str[18];
-//             char major_str[7];
-//             char minor_str[7];
-//             char x_str[6];
-//             char y_str[6];
-//             char cali_str[5];
-//             snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x", node->mac[0],
-//                      node->mac[1], node->mac[2], node->mac[3], node->mac[4], node->mac[5]);
-//             snprintf(major_str, sizeof(major_str), "0x%x", node->major);
-//             snprintf(minor_str, sizeof(minor_str), "0x%x", node->minor);
-//             snprintf(x_str, sizeof(x_str), "%d", node->x_corr);
-//             snprintf(y_str, sizeof(y_str), "%d", node->y_corr);
-//             snprintf(cali_str, sizeof(cali_str), "%d", node->cali);
-//             struct cmd_json node_val = {.cmd = "view",
-//                                         .sub = "node",
-//                                         .opts = {node->name, mac_str, major_str, minor_str, x_str,
-//                                                  y_str, cali_str, node->left_name,
-//                                                  node->right_name},
-//                                         .len = 9};
-//             memset(json_buf, 0, sizeof(json_buf));
-//             encode_json_cmd(&node_val, json_buf, sizeof(json_buf));
-// #ifdef UART_USB_C
-//             print_uart(json_buf);
-//             print_uart("\n");
-// #else
-//             printk("%s\n", json_buf);
-// #endif
-//         }
-//     }
-// unlock:
-//     // Unlock the tree
-//     rb_unlock();
-//     /* End of json list */
-//     memset(json_buf, 0, sizeof(json_buf));
-//     val.sub = "end";
-//     encode_json_cmd(&val, json_buf, sizeof(json_buf));
-// #ifdef UART_USB_C
-//     print_uart(json_buf);
-//     print_uart("\n");
-// #else
-//     printk("%s\n", json_buf);
-// #endif
-// }
 
 /* ========================================================================== */
 /* Node Insert / Remove                                                       */

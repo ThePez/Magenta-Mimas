@@ -7,12 +7,11 @@
 #ifndef UART_H
 #define UART_H
 
-#include <stdio.h>
-
 // Use this define to make the UART use the USB-C UART
-#define UART_USB_C 1
+// #define UART_USB_C 1
 
 #ifdef UART_USB_C
+#include <stdio.h>
 
 int uart_send(const char *buf, size_t len);
 int print_uart(const char *str);
