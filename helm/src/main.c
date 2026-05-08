@@ -26,6 +26,8 @@ struct k_work_delayable timeout_work;
 static struct bt_conn *current_conn = NULL;
 static uint64_t connect_time = 0;
 
+static struct bt_le_adv_param adv_param;
+
 static const bt_addr_le_t base_addr = {
     .type = BT_ADDR_LE_RANDOM, .a.val = {0xBB, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
     // FF:EE:DD:CC:BB:BB  <-- replace with Base address
@@ -59,6 +61,28 @@ int set_static_address(void)
         return err;
     }
 
+    return 0;
+}
+
+/* ========================================================================== */
+/* Whitelist / Filter Accept List                                             */
+/* ========================================================================== */
+
+static int configure_accept_list(void)
+{
+    int err = bt_le_filter_accept_list_clear();
+    if (err) {
+        printk("[ERROR] Failed to clear accept list (err %d)\n", err);
+        return err;
+    }
+
+    err = bt_le_filter_accept_list_add(&base_addr);
+    if (err) {
+        printk("[ERROR] Failed to add base to accept list (err %d)\n", err);
+        return err;
+    }
+
+    printk("[INFO] Accept list configured\n");
     return 0;
 }
 
@@ -119,7 +143,7 @@ static void disconnect_timeout(struct k_work *work)
 
 static void adv_restart(struct k_work *work)
 {
-    int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    int err = bt_le_adv_start(&adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
     if (err < 0) {
         printk("[ERROR] Failed to restart advertising (err %d)\n", err);
         return;
@@ -186,7 +210,7 @@ int main(void)
     int err = bt_nus_cb_register(&nus_listener, NULL);
     if (err) {
         printk("[ERROR] Failed to register NUS callback: %d\n", err);
-        return err;
+        return (err);
     }
 
     // These are added to the default Zephyr System Work Queue
@@ -200,17 +224,27 @@ int main(void)
     err = bt_enable(NULL);
     if (err) {
         printk("[ERROR] Failed to enable bluetooth: %d\n", err);
-        return err;
+        return (err);
+    }
+
+    // Accept list must be configured after bt_enable
+    if (configure_accept_list()) {
+        printk("[ERROR] Failed to configure accept list\n");
+        return (-1);
     }
 
     // New MTU size
     bt_gatt_cb_register(&gatt_callbacks);
 
+    // Add white-list options
+    adv_param = *BT_LE_ADV_CONN_FAST_1; // Have to macro initalise first
+    adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN | BT_LE_ADV_OPT_FILTER_SCAN_REQ;
+
     // Start NUS advertising so base chip can connect
-    err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    err = bt_le_adv_start(&adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
     if (err) {
         printk("[ERROR] Failed to start advertising: %d\n", err);
-        return err;
+        return (err);
     }
 
     printk("[INFO] Network initialization complete\n");
@@ -226,9 +260,3 @@ int main(void)
         k_msleep(500);
     }
 }
-
-/*
-
-
-
-*/
