@@ -6,4 +6,7 @@ project(project-base)
 
 target_sources(app PRIVATE 
     src/main.c
+    src/gatt.c
+    src/uart.c
+    src/rb_tree.c
 )
