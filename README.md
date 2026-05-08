@@ -43,3 +43,5 @@ The `just build` recipe automatically:
 2. Updates a `compile_commands.json` symlink in the repo root pointing at the most recently built target's compile commands.
 
 This means **after building any target, clangd will use that target's compile commands** for the whole repo. If you're switching between `base` and `helm` and getting wrong includes/errors in your editor, just run `just build <target>` for whichever one you're actively working on.
+
+Test 
