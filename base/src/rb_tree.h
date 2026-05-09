@@ -12,7 +12,7 @@
 
 #define RSSI_RING_BUFFER_SIZE     10
 #define DISTANCE_RING_BUFFER_SIZE 10
-#define NUM_BEACONS               13
+#define NUM_BEACONS               2
 
 // Ring Buffer to store RSSI readings
 struct rssi_ring {
@@ -31,7 +31,7 @@ struct distance_ring {
 };
 
 // red/black tree data structure
-struct beacon_data {
+struct peripheral_data {
     double weight;
     uint16_t x_corr;
     uint16_t y_corr;
@@ -52,13 +52,13 @@ int rb_lock(void);
 int rb_lock_no_wait(void);
 int rb_unlock(void);
 void init_rb_tree(void);
-struct beacon_data *get_rb_node(uint32_t target);
+struct peripheral_data *get_rb_node(uint32_t target);
 int get_rb_tree_size(void);
 void print_rb_node(char *name, bool all);
 int remove_rb_node(char *name, uint16_t major, uint16_t minor);
 int insert_rb_node(char *name, uint8_t mac[6], uint16_t major, uint16_t minor, double x, double y,
                    int8_t cali, char *left, char *right);
 
-extern struct beacon_data data_list[NUM_BEACONS];
+extern struct peripheral_data data_list[NUM_BEACONS];
 
 #endif

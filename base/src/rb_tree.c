@@ -5,23 +5,16 @@
  */
 
 #include "rb_tree.h"
-#include "uart.h"
-#include "zephyr/sys/printk.h"
 
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <zephyr/kernel.h>
+#include "zephyr/sys/printk.h"
 #include <zephyr/sys/util.h>
 #include <sys/errno.h>
 
-#ifndef UART_USB_C
-#include <zephyr/sys/printk.h>
-#endif
-
-#define NAME_LENGTH  10
-#define JSON_BUF_LEN 256
+#define NAME_LENGTH 10
 
 static bool beacon_data_lessthan_func(struct rbnode *a, struct rbnode *b);
 
@@ -41,97 +34,10 @@ static int size = NUM_BEACONS;
 // Mutex Lock to protect the tree from curuption
 K_MUTEX_DEFINE(rbLock);
 
-/* ========================================================================== */
-/* Default iBeacon Data                                                       */
-/* The 13 known lab beacons, pre-populated with MAC, major/minor keys,        */
-/* calibrated RSSI at 1m, physical coordinates in mm, and neighbour names     */
-/* for the logical tree structure used by the GUI.                            */
-/* These nodes are statically allocated - dynamic flag is 0.                  */
-/* ========================================================================== */
-
-/* clang-format off */
-// Default known iBeacons 
-struct beacon_data data_list[NUM_BEACONS] = {
-    {.name = "4011-A",
-        .mac = {0xF5, 0x75, 0xFE, 0x85, 0x34, 0x67},
-        .major = 0x0AC1, .minor = 0x80E6, .dynamic = 0, .cali = -57,
-        .x_corr = 3400, .y_corr = 0,
-        .left_name = "NULL", .right_name = "4011-L"
-    },
-    {.name = "4011-B",
-        .mac = {0xE5, 0x73, 0x87, 0x06, 0x1E, 0x86},
-        .major = 0x80CF, .minor = 0x51DF, .dynamic = 0, .cali = -61,
-        .x_corr = 1700, .y_corr = 0,
-        .left_name = "NULL", .right_name = "4011-M"
-    },
-    {.name = "4011-C",
-        .mac = {0xCA, 0x99, 0x9E, 0xFD, 0x98, 0xB1},
-        .major = 0x6837, .minor = 0x9DAB, .dynamic = 0, .cali = -66,
-        .x_corr = 0, .y_corr = 0,
-        .left_name = "NULL", .right_name = "4011-D"
-    },
-    {.name = "4011-D",
-        .mac = {0xCB, 0x1B, 0x89, 0x82, 0xFF, 0xFE},
-        .major = 0xA313, .minor = 0x9790, .dynamic = 0, .cali = -62,
-        .x_corr = 0, .y_corr = 2000,
-        .left_name = "4011-C", .right_name = "4011-E"
-    },
-    {.name = "4011-E",
-        .mac = {0xD4, 0xD2, 0xA0, 0xA4, 0x5C, 0xAC},
-        .major = 0x77D7, .minor = 0xCAFB, .dynamic = 0, .cali = -70,
-        .x_corr = 0, .y_corr = 4500,
-        .left_name = "4011-D", .right_name = "4011-F"
-    },
-    {.name = "4011-F",
-        .mac = {0xC1, 0x13, 0x27, 0xE9, 0xB7, 0x7C},
-        .major = 0x1833, .minor = 0x47DA, .dynamic = 0, .cali = -60,
-        .x_corr = 0, .y_corr = 6750,
-        .left_name = "4011-E", .right_name = "4011-G"
-    },
-    {.name = "4011-G",
-        .mac = {0xF1, 0x04, 0x48, 0x06, 0x39, 0xA0},
-        .major = 0x773D, .minor = 0x7750, .dynamic = 0, .cali = -61,
-        .x_corr = 0, .y_corr = 8500,
-        .left_name = "4011-F", .right_name = "NULL"
-    },
-    {.name = "4011-H",
-        .mac = {0xCA, 0x0C, 0xE0, 0xDB, 0xCE, 0x60},
-        .major = 0xE033, .minor = 0x7103, .dynamic = 0, .cali = -60,
-        .x_corr = 1700, .y_corr = 8500,
-        .left_name = "4011-M", .right_name = "NULL"
-    },
-    {.name = "4011-I",
-        .mac = {0xD4, 0x7F, 0xD4, 0x7C, 0x20, 0x13},
-        .major = 0xEBB9, .minor = 0xC34B, .dynamic = 0, .cali = -63,
-        .x_corr = 3400, .y_corr = 8500,
-        .left_name = "4011-J", .right_name = "NULL"
-    },
-    {.name = "4011-J",
-        .mac = {0xF7, 0x0B, 0x21, 0xF1, 0xC8, 0xE1},
-        .major = 0x2FD9, .minor = 0x78C4, .dynamic = 0, .cali = -59,
-        .x_corr = 3400, .y_corr = 6750,
-        .left_name = "4011-K", .right_name = "4011-I"
-    },
-    {.name = "4011-K",
-        .mac = {0xFD, 0xE0, 0x8D, 0xFA, 0x3E, 0x4A},
-        .major = 0x8F8C, .minor = 0x2CC1, .dynamic = 0, .cali = -62,
-        .x_corr = 3400, .y_corr = 4500,
-        .left_name = "4011-L", .right_name = "4011-J"
-    },
-    {.name = "4011-L",
-        .mac = {0xEE, 0x32, 0xF7, 0x28, 0xFA, 0xAC},
-        .major = 0x6BAC, .minor = 0x6BC5, .dynamic = 0, .cali = -61,
-        .x_corr = 3400, .y_corr = 2000,
-        .left_name = "4011-A", .right_name = "4011-K"
-    },
-    {.name = "4011-M",
-        .mac = {0xF7, 0x3B, 0x46, 0xA8, 0xD7, 0x2C},
-        .major = 0xC05F, .minor = 0xCEBD, .dynamic = 0, .cali = -60,
-        .x_corr = 1600, .y_corr = 4500,
-        .left_name = "4011-B", .right_name = "4011-H"
-    },
+struct peripheral_data data_list[NUM_BEACONS] = {
+    {0},
+    {0},
 };
-/* clang-format on */
 
 /* ========================================================================== */
 /* Tree Protection                                                            */
@@ -162,8 +68,8 @@ int rb_unlock(void)
 /* Ordering function used by the Zephyr rbtree. */
 static bool beacon_data_lessthan_func(struct rbnode *a, struct rbnode *b)
 {
-    struct beacon_data *n1 = CONTAINER_OF(a, struct beacon_data, rbnode);
-    struct beacon_data *n2 = CONTAINER_OF(b, struct beacon_data, rbnode);
+    struct peripheral_data *n1 = CONTAINER_OF(a, struct peripheral_data, rbnode);
+    struct peripheral_data *n2 = CONTAINER_OF(b, struct peripheral_data, rbnode);
 
     uint32_t key1 = ((uint32_t)n1->major << 16) | n1->minor;
     uint32_t key2 = ((uint32_t)n2->major << 16) | n2->minor;
@@ -171,7 +77,7 @@ static bool beacon_data_lessthan_func(struct rbnode *a, struct rbnode *b)
     return (key1 < key2);
 }
 
-/* Inserts all 13 default beacons into the tree. */
+/* Inserts all default beacons into the tree. */
 void init_rb_tree(void)
 {
     if (initialised) {
@@ -191,7 +97,7 @@ void init_rb_tree(void)
 }
 
 /* Searches the tree for a node matching the (major << 16 | minor) key. */
-struct beacon_data *get_rb_node(uint32_t target)
+struct peripheral_data *get_rb_node(uint32_t target)
 {
     if (!initialised) {
         return (NULL);
@@ -204,7 +110,7 @@ struct beacon_data *get_rb_node(uint32_t target)
 
     struct rbnode *node = tree.root;
     while (node != NULL) {
-        struct beacon_data *bd = CONTAINER_OF(node, struct beacon_data, rbnode);
+        struct peripheral_data *bd = CONTAINER_OF(node, struct peripheral_data, rbnode);
         uint32_t key = ((uint32_t)bd->major << 16) | bd->minor;
 
         if (target == key) {
@@ -236,7 +142,7 @@ int remove_rb_node(char *name, uint16_t major, uint16_t minor)
     }
 
     uint32_t key = ((uint32_t)major << 16) | minor;
-    struct beacon_data *node = get_rb_node(key);
+    struct peripheral_data *node = get_rb_node(key);
     if (node == NULL) {
         rb_unlock();
         return (-ESRCH);
@@ -292,7 +198,8 @@ int insert_rb_node(char *name, uint8_t mac[6], uint16_t major, uint16_t minor, d
     }
 
     // Completely new node
-    struct beacon_data *new = (struct beacon_data *)k_malloc(sizeof(struct beacon_data));
+    struct peripheral_data *new =
+        (struct peripheral_data *)k_malloc(sizeof(struct peripheral_data));
     if (new == NULL) {
         goto unlock;
     }
