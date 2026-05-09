@@ -6,4 +6,6 @@ project(project-helm)
 
 target_sources(app PRIVATE 
     src/main.c
+    src/gatt.c
+    src/sensor.c
 )
