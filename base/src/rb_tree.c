@@ -6,56 +6,56 @@
 
 #include "rb_tree.h"
 
-#include <stdint.h>
 #include <string.h>
+#include <sys/errno.h>
 
 #include <zephyr/kernel.h>
 #include "zephyr/sys/printk.h"
 #include <zephyr/sys/util.h>
-#include <sys/errno.h>
 
-#define NAME_LENGTH 10
-
-static bool beacon_data_lessthan_func(struct rbnode *a, struct rbnode *b);
+static bool helm_lessthan_func(struct rbnode *a, struct rbnode *b);
 
 /* ========================================================================== */
 /* Static Data                                                                */
 /* ========================================================================== */
 
-// Root of the red black tree that stores the data related to all nodes
-static struct rbtree tree = {.lessthan_fn = beacon_data_lessthan_func};
-
-// Is the red black tree initialised
+static struct rbtree tree = {.lessthan_fn = helm_lessthan_func};
 static uint8_t initialised = 0;
+static int size = 0;
 
-// Size of the red black tree
-static int size = NUM_BEACONS;
-
-// Mutex Lock to protect the tree from curuption
 K_MUTEX_DEFINE(rbLock);
 
-struct peripheral_data data_list[NUM_BEACONS] = {
-    {0},
-    {0},
+struct helm_node helm_list[NUM_HELMS] = {
+    [0] = {.id = 0},
+    [1] = {.id = 1},
 };
 
 /* ========================================================================== */
 /* Tree Protection                                                            */
 /* ========================================================================== */
 
-/* Attempt to aquire the rbLock, timeout after 10ms */
+/**
+ * @brief Attempt to acquire the rb_tree mutex, timeout after 10ms.
+ * @return 0 on success, negative errno on timeout.
+ */
 int rb_lock(void)
 {
     return k_mutex_lock(&rbLock, K_MSEC(10));
 }
 
-/* Attempt to aquire the rbLock, no waiting */
+/**
+ * @brief Attempt to acquire the rb_tree mutex without waiting.
+ * @return 0 on success, -EBUSY if unavailable.
+ */
 int rb_lock_no_wait(void)
 {
     return k_mutex_lock(&rbLock, K_NO_WAIT);
 }
 
-/* Release the previously aquired rbLock, return as per k_mutex_unlock() */
+/**
+ * @brief Release the rb_tree mutex.
+ * @return 0 on success, negative errno on failure.
+ */
 int rb_unlock(void)
 {
     return k_mutex_unlock(&rbLock);
@@ -65,39 +65,43 @@ int rb_unlock(void)
 /* Tree Operations                                                            */
 /* ========================================================================== */
 
-/* Ordering function used by the Zephyr rbtree. */
-static bool beacon_data_lessthan_func(struct rbnode *a, struct rbnode *b)
+static bool helm_lessthan_func(struct rbnode *a, struct rbnode *b)
 {
-    struct peripheral_data *n1 = CONTAINER_OF(a, struct peripheral_data, rbnode);
-    struct peripheral_data *n2 = CONTAINER_OF(b, struct peripheral_data, rbnode);
+    struct helm_node *n1 = CONTAINER_OF(a, struct helm_node, rbnode);
+    struct helm_node *n2 = CONTAINER_OF(b, struct helm_node, rbnode);
 
-    uint32_t key1 = ((uint32_t)n1->major << 16) | n1->minor;
-    uint32_t key2 = ((uint32_t)n2->major << 16) | n2->minor;
-
-    return (key1 < key2);
+    return (n1->id < n2->id);
 }
 
-/* Inserts all default beacons into the tree. */
+/**
+ * @brief Insert pre-allocated nodes for both helms and mark the tree ready.
+ *        Safe to call multiple times — subsequent calls are no-ops.
+ */
 void init_rb_tree(void)
 {
     if (initialised) {
         return;
     }
 
-    // Wait forever until lock is free, realistically this will never wait.
     k_mutex_lock(&rbLock, K_FOREVER);
 
-    for (int i = 0; i < ARRAY_SIZE(data_list); i++) {
-        rb_insert(&tree, &(data_list[i].rbnode));
+    for (int i = 0; i < ARRAY_SIZE(helm_list); i++) {
+        rb_insert(&tree, &helm_list[i].rbnode);
+        size++;
     }
 
     initialised = 1;
-    // Unlock the tree
     k_mutex_unlock(&rbLock);
 }
 
-/* Searches the tree for a node matching the (major << 16 | minor) key. */
-struct peripheral_data *get_rb_node(uint32_t target)
+/**
+ * @brief Look up a helm node by its id.
+ *
+ * @param id  Helm identifier to search for.
+ * @return Pointer to the matching helm_node, or NULL if not found or tree
+ *         uninitialised.
+ */
+struct helm_node *get_rb_node(uint16_t id)
 {
     if (!initialised) {
         return (NULL);
@@ -110,146 +114,140 @@ struct peripheral_data *get_rb_node(uint32_t target)
 
     struct rbnode *node = tree.root;
     while (node != NULL) {
-        struct peripheral_data *bd = CONTAINER_OF(node, struct peripheral_data, rbnode);
-        uint32_t key = ((uint32_t)bd->major << 16) | bd->minor;
+        struct helm_node *hn = CONTAINER_OF(node, struct helm_node, rbnode);
 
-        if (target == key) {
+        if (id == hn->id) {
             rb_unlock();
-            return (bd);
-        } else if (target < key) {
+            return (hn);
+        } else if (id < hn->id) {
             node = z_rb_child(node, 0);
         } else {
             node = z_rb_child(node, 1);
         }
     }
 
-    // Unlock the tree
     rb_unlock();
     return (NULL);
+}
+
+/**
+ * @brief Return the number of nodes currently in the tree.
+ * @return Current tree size.
+ */
+int get_rb_tree_size(void)
+{
+    return size;
 }
 
 /* ========================================================================== */
 /* Node Insert / Remove                                                       */
 /* ========================================================================== */
 
-/* Removes a node from the tree by name and (major, minor) key. */
-int remove_rb_node(char *name, uint16_t major, uint16_t minor)
+/**
+ * @brief Remove a helm node from the tree by id. Frees heap-allocated nodes.
+ *
+ * @param id  Helm identifier to remove.
+ * @return 0 on success, -EBUSY if the lock is unavailable, -ESRCH if not found.
+ */
+int remove_rb_node(uint16_t id)
 {
-    // Lock the tree
     if (rb_lock()) {
         printk("[ERROR] rbTree Mutex unavailable\n");
         return (-EBUSY);
     }
 
-    uint32_t key = ((uint32_t)major << 16) | minor;
-    struct peripheral_data *node = get_rb_node(key);
+    struct helm_node *node = get_rb_node(id);
     if (node == NULL) {
         rb_unlock();
         return (-ESRCH);
     }
 
-    struct rbnode *n = &node->rbnode;
-    rb_remove(&tree, n);
+    rb_remove(&tree, &node->rbnode);
+    size--;
+
     if (node->dynamic) {
-        k_free(node->name);
-        k_free(node->left_name);
-        k_free(node->right_name);
         k_free(node);
     }
 
-    size--;
-    // Unlock the tree
     rb_unlock();
     return (0);
 }
 
-/* Inserts a new beacon node into the tree. */
-int insert_rb_node(char *name, uint8_t mac[6], uint16_t major, uint16_t minor, double x, double y,
-                   int8_t cali, char *left, char *right)
+/**
+ * @brief Insert a node with the given id into the tree.
+ *
+ * For ids 0 and 1, re-inserts the corresponding pre-allocated helm_list entry.
+ * For any other id, allocates a new node on the heap. Returns -EINVAL if a
+ * node with that id already exists.
+ *
+ * @param id  Helm identifier for the new node.
+ * @return 0 on success, -EBUSY if the lock is unavailable, -EINVAL if the id
+ *         is already present, -ENOMEM if heap allocation fails.
+ */
+int insert_rb_node(uint16_t id)
 {
-    // Lock the tree
     if (rb_lock()) {
         printk("[ERROR] rbTree Mutex unavailable\n");
         return (-EBUSY);
     }
 
-    // Check for node already exists
-    if (get_rb_node(((uint32_t)major << 16) | minor) != NULL) {
+    if (get_rb_node(id) != NULL) {
         rb_unlock();
         return (-EINVAL);
     }
 
-    // Check if node being added is one of the 13 originals
-    int8_t original = -1;
-    for (uint8_t i = 0; i < NUM_BEACONS; i++) {
-        if ((major == data_list[i].major) && (minor == data_list[i].minor)) {
-            original = i;
-            break;
-        }
-    }
-
-    // Don't make a dynamic node if you're re-adding 1 of the 13
-    if (original >= 0) {
-        rb_insert(&tree, &(data_list[original]).rbnode);
+    /* Re-insert one of the two pre-allocated static nodes */
+    if (id < NUM_HELMS) {
+        rb_insert(&tree, &helm_list[id].rbnode);
         size++;
-        // Unlock the tree
         rb_unlock();
         return (0);
     }
 
-    // Completely new node
-    struct peripheral_data *new =
-        (struct peripheral_data *)k_malloc(sizeof(struct peripheral_data));
+    /* Arbitrary new node — heap allocate */
+    struct helm_node *new = (struct helm_node *)k_malloc(sizeof(struct helm_node));
     if (new == NULL) {
-        goto unlock;
+        rb_unlock();
+        return (-ENOMEM);
     }
 
-    new->name = k_malloc(NAME_LENGTH);
-    if (new->name == NULL) {
-        goto free_name;
-    }
-
-    new->left_name = k_malloc(NAME_LENGTH);
-    if (new->left_name == NULL) {
-        goto free_left;
-    }
-
-    new->right_name = k_malloc(NAME_LENGTH);
-    if (new->right_name == NULL) {
-        goto free_right;
-    }
-
-    strncpy(new->name, name, NAME_LENGTH - 1);
-    new->name[NAME_LENGTH - 1] = '\0';
-    strncpy(new->left_name, left, NAME_LENGTH - 1);
-    new->left_name[NAME_LENGTH - 1] = '\0';
-    strncpy(new->right_name, right, NAME_LENGTH - 1);
-    new->right_name[NAME_LENGTH - 1] = '\0';
-    new->major = major;
-    new->minor = minor;
-    new->x_corr = x;
-    new->y_corr = y;
+    memset(new, 0, sizeof(*new));
+    new->id = id;
     new->dynamic = 1;
-    new->cali = cali;
-    for (int i = 0; i < 6; i++) {
-        new->mac[i] = mac[i];
-    }
 
     rb_insert(&tree, &new->rbnode);
     size++;
 
-    // Unlock the tree
     rb_unlock();
     return (0);
+}
 
-free_right:
-    k_free(new->right_name);
-free_left:
-    k_free(new->left_name);
-free_name:
-    k_free(new->name);
-unlock:
-    // Unlock the tree
+/* ========================================================================== */
+/* Debug                                                                      */
+/* ========================================================================== */
+
+/**
+ * @brief Print all helm nodes currently in the tree to the console.
+ */
+void print_rb_node(void)
+{
+    if (!initialised) {
+        printk("[WARN] rb_tree not initialised\n");
+        return;
+    }
+
+    if (rb_lock()) {
+        printk("[ERROR] rbTree Mutex unavailable\n");
+        return;
+    }
+
+    struct helm_node *node;
+    RB_FOR_EACH_CONTAINER(&tree, node, rbnode) {
+        printk("[INFO] helm: id=%u | ctrl: ts=%lld he=%lld x=%d y=%d z=%d"
+               " | status: ts=%lld mv=%u\n",
+               node->id, node->ctrl_timestamp, node->halleffect_time, node->x, node->y, node->z,
+               node->status_timestamp, node->mv);
+    }
+
     rb_unlock();
-    return (-ENOMEM);
 }
