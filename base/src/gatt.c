@@ -154,9 +154,10 @@ static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params
 
     struct helm_control_data *control;
     struct helm_status_data *status;
+    printk("Packet recieved %s", (char *)data);
     if (length == sizeof(struct helm_control_data)) {
         control = (struct helm_control_data *)data;
-        k_msgq_put(&helm_msg_queue, control, K_NO_WAIT);
+        // k_msgq_put(&helm_msg_queue, control, K_NO_WAIT);
     } else if (length == sizeof(struct helm_status_data)) {
         status = (struct helm_status_data *)data;
         // k_msgq_put()
@@ -392,19 +393,9 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
     printk("[INFO] device: %s, AD evt type %u, AD data len %u, RSSI %i\n", dev, type, ad->len,
            rssi);
 
-    int free_slots = 0;
-    for (int i = 0; i < NUM_CONNECTIONS; i++) {
-        if (connections[i].conn == NULL) {
-            free_slots++;
-        }
-    }
+    // Stop scanning to form the connection
+    bt_le_scan_stop();
 
-    if (free_slots == 1) {
-        // Last slot being filled now -> stop scanning
-        if (bt_le_scan_stop()) {
-            return;
-        }
-    }
 
     /* Try Coded PHY first (longer range), fall back to standard 1M PHY */
     struct bt_le_conn_param *param = BT_LE_CONN_PARAM_DEFAULT;
