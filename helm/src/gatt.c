@@ -105,15 +105,10 @@ static void received(struct bt_conn *conn, const void *data, uint16_t len, void 
 {
     ARG_UNUSED(ctx);
     ARG_UNUSED(conn);
+    ARG_UNUSED(len);
 
-    const char *data_char = (const char *)data;
-    printk("Data received:");
-
-    for (uint16_t i = 0; i < len; i++) {
-        printk(" %02X", data_char[i]);
-    }
-
-    printk("\n");
+    // const char *data_char = (const char *)data;
+    printk("Data received: %s\n", (char *)data);
 }
 
 struct bt_nus_cb nus_listener = {

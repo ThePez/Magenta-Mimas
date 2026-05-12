@@ -25,7 +25,7 @@ int main(void)
 
     // The below will be deleted later.
 
-    const char *const data = "goodbye world";
+    const char *const data = "Goodbye";
     while (1) {
         send_nus_temp(data);
     }

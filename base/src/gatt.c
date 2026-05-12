@@ -97,7 +97,8 @@ static struct conn_state connections[NUM_CONNECTIONS] = {
     [1] = {.intentional_disconnect = ATOMIC_INIT(0)},
 };
 
-K_MSGQ_DEFINE(helm_msg_queue, sizeof(struct helm_control_data), 20, 4);
+K_MSGQ_DEFINE(helm_status_msg_queue, sizeof(struct helm_status_data), 5, 4);
+K_MSGQ_DEFINE(helm_control_msg_queue, sizeof(struct helm_control_data), 20, 4);
 
 /* ========================================================================== */
 /* Helpers                                                                    */
@@ -154,13 +155,13 @@ static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params
 
     struct helm_control_data *control;
     struct helm_status_data *status;
-    printk("Packet recieved %s", (char *)data);
+    printk("Packet recieved len: %u\n", length);
     if (length == sizeof(struct helm_control_data)) {
         control = (struct helm_control_data *)data;
-        // k_msgq_put(&helm_msg_queue, control, K_NO_WAIT);
+        k_msgq_put(&helm_control_msg_queue, control, K_NO_WAIT);
     } else if (length == sizeof(struct helm_status_data)) {
         status = (struct helm_status_data *)data;
-        // k_msgq_put()
+        k_msgq_put(&helm_status_msg_queue, status, K_NO_WAIT);
     }
 
     return (BT_GATT_ITER_CONTINUE); /* keep receiving notifications */
@@ -173,6 +174,9 @@ static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params
 /* ========================================================================== */
 static void write_cb(struct bt_conn *conn, uint8_t err, struct bt_gatt_write_params *params)
 {
+    ARG_UNUSED(conn);
+    ARG_UNUSED(params);
+
     if (err) {
         printk("[WARN] Write failed %d\n", err);
     }
@@ -206,17 +210,20 @@ static int send_to_peripheral(int slot, uint8_t *data, uint16_t len)
 /* ========================================================================== */
 int send_sync_pulse_to_helms(uint8_t *data, uint16_t len)
 {
-    int err = send_to_peripheral(0, data, len);
-    if (err < 0) {
-        return (err);
+    int err1 = send_to_peripheral(0, data, len);
+    int err2 = send_to_peripheral(1, data, len);
+    // Send 1 failed
+    if (err1 < 0) {
+        return (err1);
     }
 
-    err = send_to_peripheral(1, data, len);
-    if (err < 0) {
-        return (err);
+    // Send 2 failed
+    if (err2 < 0) {
+        return (err2);
     }
 
-    return 0;
+    // Both worked
+    return (0);
 }
 
 /* ========================================================================== */
@@ -388,14 +395,13 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
         return;
     }
 
-    char dev[BT_ADDR_LE_STR_LEN];
-    bt_addr_le_to_str(addr, dev, sizeof(dev));
-    printk("[INFO] device: %s, AD evt type %u, AD data len %u, RSSI %i\n", dev, type, ad->len,
-           rssi);
+    // char dev[BT_ADDR_LE_STR_LEN];
+    // bt_addr_le_to_str(addr, dev, sizeof(dev));
+    // printk("[INFO] device: %s, AD evt type %u, AD data len %u, RSSI %i\n", dev, type, ad->len,
+    //        rssi);
 
     // Stop scanning to form the connection
     bt_le_scan_stop();
-
 
     /* Try Coded PHY first (longer range), fall back to standard 1M PHY */
     struct bt_le_conn_param *param = BT_LE_CONN_PARAM_DEFAULT;

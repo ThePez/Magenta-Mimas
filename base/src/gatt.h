@@ -31,6 +31,7 @@ int close_connection(int slot);
 int set_static_address(void);
 
 /* Message Queue containing recieved data */
-extern struct k_msgq helm_msg_queue;
+extern struct k_msgq helm_control_msg_queue;
+extern struct k_msgq helm_status_msg_queue;
 
 #endif

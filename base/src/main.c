@@ -41,5 +41,12 @@ int main(void)
         return (err);
     }
 
+    char *data = "Base says hi";
+
+    while (1) {
+        send_sync_pulse_to_helms(data, strlen(data));
+        k_msleep(1000);
+    }
+
     return (0);
 }
