@@ -22,7 +22,7 @@ int main(void)
         return -1;
     }
 
-    if (initialise_bat_read()) {
+    if (initialise_bat_charge()) {
         return -1;
     }
 
