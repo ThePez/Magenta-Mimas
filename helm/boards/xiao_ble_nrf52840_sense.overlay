@@ -1,12 +1,12 @@
 / {
 	aliases {
-		heartbeat = &heartbeat_pin;
+		magnet-pin = &magnet_pin;
 	};
 
 	leds {
-		heartbeat_pin: heartbeat_pin {
-			gpios = <&xiao_d 1 GPIO_ACTIVE_HIGH>;  /* D1 */
-			label = "Heartbeat Pin";
+		magnet_pin: magnet_pin {
+			gpios = <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;  /* D0 */
+			label = "Magnetic sensor pin (HE/reed)";
 		};
 	};
 
