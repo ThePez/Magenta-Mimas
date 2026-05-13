@@ -1,0 +1,1 @@
+add_subdirectory_ifdef(CONFIG_XIAO_BATTERY xiao_battery)

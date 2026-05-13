@@ -1,10 +1,22 @@
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+#include <zephyr/dt-bindings/adc/adc.h>
+
 / {
+    xiao_bat: xiao_bat {
+        compatible = "xiao,battery";
+        status = "okay";
+
+        io-channels = <&adc 0>;
+        sampling-time = <2>; /* This is in seconds */
+        read-pin = <&gpio0 14 GPIO_ACTIVE_LOW>;
+    };
+
     gpio_output {
         compatible = "gpio-leds";
 
-        bat_read_enable_pin: bat_read_enable_pin {
-            gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
-            label = "GPIO pin to enable reading of battery voltage";
+        bat_chg_en_pin: bat_chg_en_pin {
+            gpios = <&gpio0 17 (GPIO_PULL_DOWN | GPIO_ACTIVE_LOW)>;
+            label = "Enable charging GPIO pin";
         };
     };
 
@@ -19,6 +31,21 @@
 
 	aliases {
 		magnet-pin = &magnet_pin;
-        bat-read-en-pin = &bat_read_enable_pin;
+        bat-chg-en-pin = &bat_chg_en_pin;
+        xiao-bat = &xiao_bat;
+	};
+};
+
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN7>;
+		zephyr,resolution = <12>;
 	};
 };

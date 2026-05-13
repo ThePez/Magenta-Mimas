@@ -7,7 +7,9 @@
 #ifndef BATTERY_H
 #define BATTERY_H
 
-int set_bat_read(int state);
-int initialise_bat_read(void);
+#define <stdbool.h>
+
+int set_bat_charge(bool state);
+int initialise_bat_charge(void);
 
 #endif
