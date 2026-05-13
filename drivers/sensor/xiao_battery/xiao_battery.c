@@ -1,10 +1,8 @@
-#include "zephyr/toolchain.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
-
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
@@ -76,7 +74,7 @@ static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
     }
 }
 
-static int xiao_bat_init(const struct device *dev)
+static int __used xiao_bat_init(const struct device *dev)
 {
     struct xiao_bat_data *data = dev->data;
     const struct xiao_bat_config *cfg = dev->config;
