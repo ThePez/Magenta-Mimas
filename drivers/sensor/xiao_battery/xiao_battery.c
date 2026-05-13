@@ -161,7 +161,7 @@ static DEVICE_API(sensor, xiao_bat_driver_api) = {
     };                                                                         \
     static struct xiao_bat_config xiao_bat_config_##index = {                  \
         .adc = ADC_DT_SPEC_INST_GET(index),                                    \
-        .read_pin = GPIO_DT_SPEC_INST_GET(index, read_pin),                    \
+        .read_pin = GPIO_DT_SPEC_INST_GET(index, read_gpios),                  \
         .sampling_time = DT_INST_PROP(index, sampling_time)};                  \
     SENSOR_DEVICE_DT_INST_DEFINE(                                              \
         index, &xiao_bat_init, NULL, &xiao_bat_data_##index,                   \

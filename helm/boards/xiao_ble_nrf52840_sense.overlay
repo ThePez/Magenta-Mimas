@@ -8,7 +8,7 @@
 
         io-channels = <&adc 0>;
         sampling-time = <2>; /* This is in seconds */
-        read-pin = <&gpio0 14 GPIO_ACTIVE_LOW>;
+        read-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
     };
 
     gpio_output {

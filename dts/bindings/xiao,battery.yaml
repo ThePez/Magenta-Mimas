@@ -1,7 +1,6 @@
 description: Seeeduino XIAO nRF52840 BLE battery sensor.
 
 compatible: "xiao,battery"
-
 include: sensor-device.yaml
 
 properties:
@@ -14,7 +13,7 @@ properties:
     required: true
     description: Sampling time for sensor in seconds.
 
-  read-pin:
+  read-gpios:
     type: phandle-array
     required: true
     description: GPIO pin for enabling reading.
