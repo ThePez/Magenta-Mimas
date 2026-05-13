@@ -6,6 +6,7 @@
 
 #include <zephyr/kernel.h>
 
+#include "battery.h"
 #include "gatt.h"
 #include "magnet.h"
 
@@ -18,6 +19,10 @@ int main(void)
     printk("CSSE4011 Project %s Chip\r\n", DEVICE_NAME);
 
     if (initialise_magnet_sensor()) {
+        return -1;
+    }
+
+    if (initialise_bat_read()) {
         return -1;
     }
 

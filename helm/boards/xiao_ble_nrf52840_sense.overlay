@@ -1,57 +1,24 @@
 / {
-	aliases {
-		magnet-pin = &magnet_pin;
-	};
+    gpio_output {
+        compatible = "gpio-leds";
 
-	leds {
+        bat_read_enable_pin: bat_read_enable_pin {
+            gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+            label = "GPIO pin to enable reading of battery voltage";
+        };
+    };
+
+    gpio_input {
+        compatible = "gpio-leds";
+
 		magnet_pin: magnet_pin {
 			gpios = <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;  /* D0 */
 			label = "Magnetic sensor pin (HE/reed)";
 		};
+    };
+
+	aliases {
+		magnet-pin = &magnet_pin;
+        bat-read-en-pin = &bat_read_enable_pin;
 	};
-
-	// Taken from the kite overlay
-	pwm_leds {
-		compatible = "pwm-leds";
-
-		pwm_red: pwm_red {
-			pwms = <&pwm1 0 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
-		};
-
-		pwm_green: pwm_green {
-			pwms = <&pwm1 1 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
-		};
-
-		pwm_blue: pwm_blue {
-			pwms = <&pwm1 2 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
-		};
-	};
-};
-
-// Taken from the kite overlay
-&pinctrl {
-	pwm1_default: pwm1_default {
-		group1 {
-			psels = <NRF_PSEL(PWM_OUT0, 0, 26)>,  /* Red LED */
-				<NRF_PSEL(PWM_OUT1, 0, 30)>,   /* Green LED */
-				<NRF_PSEL(PWM_OUT2, 0, 6)>;    /* Blue LED */
-			nordic,invert;
-		};
-	};
-
-	pwm1_sleep: pwm1_sleep {
-		group1 {
-			psels = <NRF_PSEL(PWM_OUT0, 0, 26)>,
-				<NRF_PSEL(PWM_OUT1, 0, 30)>,
-				<NRF_PSEL(PWM_OUT2, 0, 6)>;
-			low-power-enable;
-		};
-	};
-};
-
-&pwm1 {
-	status = "okay";
-	pinctrl-0 = <&pwm1_default>;
-	pinctrl-1 = <&pwm1_sleep>;
-	pinctrl-names = "default", "sleep";
 };
