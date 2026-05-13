@@ -5,9 +5,9 @@
  */
 
 #include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
 
 #include "gatt.h"
+#include "magnet.h"
 
 /* ========================================================================== */
 /* Main                                                                       */
@@ -16,6 +16,10 @@
 int main(void)
 {
     printk("CSSE4011 Project %s Chip\r\n", DEVICE_NAME);
+
+    if (initialise_magnet_sensor()) {
+        return -1;
+    }
 
     if (initialise_helm_gatt()) {
         return -1;
