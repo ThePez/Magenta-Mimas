@@ -1,6 +1,7 @@
 description: Seeeduino XIAO nRF52840 BLE battery sensor.
 
 compatible: "xiao,battery"
+
 include: sensor-device.yaml
 
 properties:

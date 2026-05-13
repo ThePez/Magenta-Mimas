@@ -1,9 +1,6 @@
-
 config XIAO_BATTERY
     bool "XIAO battery sensor"
     default n
-    depends on DT_HAS_XIAO_BATTERY_ENABLED
-    depends on SENSOR
-    depends on ADC
+    depends on DT_HAS_XIAO_BATTERY_ENABLED && SENSOR && ADC
     help
         Enable driver for Seeeduino XIAO battery sensor.

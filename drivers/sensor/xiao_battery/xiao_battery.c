@@ -1,3 +1,4 @@
+#include "zephyr/toolchain.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/adc.h>
@@ -15,7 +16,7 @@
 #define STACK_SIZE        1024
 
 #define BATTERY_VOLTAGE_LEVELS 11
-#define VOLTAGE_DIVIDER_XIAO   (510 / 1000)
+#define VOLTAGE_DIVIDER_XIAO   (510.0 / 1000.0)
 
 LOG_MODULE_REGISTER(xiao_bat, CONFIG_SENSOR_LOG_LEVEL);
 K_THREAD_STACK_DEFINE(sample_thread_stack, STACK_SIZE);
@@ -37,8 +38,10 @@ static const int32_t battery_voltages[BATTERY_VOLTAGE_LEVELS] = {
     [6] = 3850, [7] = 3900, [8] = 3950, [9] = 4000, [10] = 4200,
 };
 
-static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *)
+static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
 {
+    ARG_UNUSED(arg3);
+
     struct xiao_bat_data *data = (struct xiao_bat_data *)dataVoid;
     const struct xiao_bat_config *cfg = (const struct xiao_bat_config *)cfgVoid;
 
@@ -84,7 +87,7 @@ static int xiao_bat_init(const struct device *dev)
     }
 
     if (!gpio_is_ready_dt(&(cfg->read_pin))) {
-        LOG_ERR("Device %s is not ready", cfg->read_pin.dev->name);
+        LOG_ERR("Device %s is not ready", cfg->read_pin.port->name);
         return -ENODEV;
     }
 
@@ -101,20 +104,18 @@ static int xiao_bat_init(const struct device *dev)
     }
 
     k_thread_create(&(data->sampling_thread), sample_thread_stack,
-                    K_THREAD_STACK_SIZEOF(sample_thread_stack),
-                    xiao_bat_sample_thread, data, (void *)cfg, NULL, PRIORITY,
-                    0, K_NO_WAIT);
+                    K_THREAD_STACK_SIZEOF(sample_thread_stack), xiao_bat_sample_thread, data,
+                    (void *)cfg, NULL, PRIORITY, 0, K_NO_WAIT);
 
     return 0;
 }
 
-static int xiao_bat_sample_fetch(const struct device *dev,
-                                 enum sensor_channel chan)
+static int xiao_bat_sample_fetch(const struct device *dev, enum sensor_channel chan)
 {
     struct xiao_bat_data *data = dev->data;
+    const struct xiao_bat_config *cfg = dev->config;
 
-    if (chan == SENSOR_CHAN_VOLTAGE ||
-        chan == SENSOR_CHAN_GAUGE_STATE_OF_CHARGE) {
+    if (chan == SENSOR_CHAN_VOLTAGE || chan == SENSOR_CHAN_GAUGE_STATE_OF_CHARGE) {
 
         int32_t dataBuffer = (int32_t)atomic_get(&(data->raw));
         int ret = adc_raw_to_millivolts_dt(&(cfg->adc), &dataBuffer);
@@ -131,12 +132,11 @@ static int xiao_bat_sample_fetch(const struct device *dev,
     return -ENOTSUP;
 }
 
-static int xiao_bat_channel_get(const struct device *dev,
-                                enum sensor_channel chan,
+static int xiao_bat_channel_get(const struct device *dev, enum sensor_channel chan,
                                 struct sensor_value *val)
 {
     struct xiao_bat_data *data = dev->data;
-    const struct xiao_bat_config *cfg = dev->config;
+    // const struct xiao_bat_config *cfg = dev->config;
 
     int32_t millivolts = data->millivolts;
 
@@ -145,27 +145,27 @@ static int xiao_bat_channel_get(const struct device *dev,
     } else if (chan == SENSOR_CHAN_GAUGE_STATE_OF_CHARGE) {
         int current_index = 0;
         while (current_index < BATTERY_VOLTAGE_LEVELS &&
-                millivolts < battery_voltages[current_index++]) {}
+               millivolts < battery_voltages[current_index++]) {
+        }
         return 10 * current_index;
     }
 
     return -ENOTSUP;
 }
 
-static DEVICE_API(sensor, xiao_bat_driver_api) = {
-    .sample_fetch = xiao_bat_sample_fetch, .channel_get = xiao_bat_channel_get};
+static DEVICE_API(sensor, xiao_bat_driver_api) = {.sample_fetch = xiao_bat_sample_fetch,
+                                                  .channel_get = xiao_bat_channel_get};
 
-#define XIAO_BATTERY_INIT(index)                                               \
-    static struct xiao_bat_data xiao_bat_data_##index = {                      \
-        .raw = ATOMIC_INIT(0),                                                 \
-    };                                                                         \
-    static struct xiao_bat_config xiao_bat_config_##index = {                  \
-        .adc = ADC_DT_SPEC_INST_GET(index),                                    \
-        .read_pin = GPIO_DT_SPEC_INST_GET(index, read_gpios),                  \
-        .sampling_time = DT_INST_PROP(index, sampling_time)};                  \
-    SENSOR_DEVICE_DT_INST_DEFINE(                                              \
-        index, &xiao_bat_init, NULL, &xiao_bat_data_##index,                   \
-        &xiao_bat_config_##index, POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,    \
-        &xiao_bat_driver_api);
+#define XIAO_BATTERY_INIT(index)                                                                   \
+    static struct xiao_bat_data xiao_bat_data_##index = {                                          \
+        .raw = ATOMIC_INIT(0),                                                                     \
+    };                                                                                             \
+    static struct xiao_bat_config xiao_bat_config_##index = {                                      \
+        .adc = ADC_DT_SPEC_INST_GET(index),                                                        \
+        .read_pin = GPIO_DT_SPEC_INST_GET(index, read_gpios),                                      \
+        .sampling_time = DT_INST_PROP(index, sampling_time)};                                      \
+    SENSOR_DEVICE_DT_INST_DEFINE(index, &xiao_bat_init, NULL, &xiao_bat_data_##index,              \
+                                 &xiao_bat_config_##index, POST_KERNEL,                            \
+                                 CONFIG_SENSOR_INIT_PRIORITY, &xiao_bat_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(XIAO_BATTERY_INIT)
