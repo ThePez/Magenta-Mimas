@@ -13,8 +13,7 @@
 #define PRIORITY          (-1)
 #define STACK_SIZE        1024
 
-#define BATTERY_VOLTAGE_LEVELS 11
-#define VOLTAGE_DIVIDER_XIAO   (510.0 / 1000.0)
+#define VOLTAGE_DIVIDER_XIAO (510.0 / 1000.0)
 
 LOG_MODULE_REGISTER(xiao_bat, CONFIG_SENSOR_LOG_LEVEL);
 K_THREAD_STACK_DEFINE(sample_thread_stack, STACK_SIZE);
@@ -31,10 +30,8 @@ struct xiao_bat_config {
     const int sampling_time;
 };
 
-static const int32_t battery_voltages[BATTERY_VOLTAGE_LEVELS] = {
-    [0] = 3200, [1] = 3500, [2] = 3600, [3] = 3700, [4] = 3750,  [5] = 3800,
-    [6] = 3850, [7] = 3900, [8] = 3950, [9] = 4000, [10] = 4200,
-};
+static const int32_t battery_voltages[] = {3200, 3500, 3600, 3700, 3750, 3800,
+                                           3850, 3900, 3950, 4000, 4200};
 
 static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
 {
@@ -81,31 +78,31 @@ static int __used xiao_bat_init(const struct device *dev)
 
     if (!adc_is_ready_dt(&(cfg->adc))) {
         LOG_ERR("Device %s is not ready", cfg->adc.dev->name);
-        return -ENODEV;
+        return (-ENODEV);
     }
 
     if (!gpio_is_ready_dt(&(cfg->read_pin))) {
         LOG_ERR("Device %s is not ready", cfg->read_pin.port->name);
-        return -ENODEV;
+        return (-ENODEV);
     }
 
     int ret = gpio_pin_configure_dt(&(cfg->read_pin), GPIO_OUTPUT_ACTIVE);
     if (ret < 0) {
         LOG_ERR("GPIO not configured as output: %d", ret);
-        return ret;
+        return (ret);
     }
 
     ret = adc_channel_setup_dt(&(cfg->adc));
     if (ret < 0) {
         LOG_ERR("Channel setup failed: %d", ret);
-        return ret;
+        return (ret);
     }
 
     k_thread_create(&(data->sampling_thread), sample_thread_stack,
                     K_THREAD_STACK_SIZEOF(sample_thread_stack), xiao_bat_sample_thread, data,
                     (void *)cfg, NULL, PRIORITY, 0, K_NO_WAIT);
 
-    return 0;
+    return (0);
 }
 
 static int xiao_bat_sample_fetch(const struct device *dev, enum sensor_channel chan)
@@ -120,35 +117,40 @@ static int xiao_bat_sample_fetch(const struct device *dev, enum sensor_channel c
 
         if (ret < 0) {
             LOG_ERR("Unable to convert to mv: %d", ret);
-            return ret;
+            return (ret);
         }
 
         data->millivolts = dataBuffer / VOLTAGE_DIVIDER_XIAO;
-        return 0;
+        return (0);
     }
 
-    return -ENOTSUP;
+    return (-ENOTSUP);
 }
 
 static int xiao_bat_channel_get(const struct device *dev, enum sensor_channel chan,
                                 struct sensor_value *val)
 {
     struct xiao_bat_data *data = dev->data;
-    // const struct xiao_bat_config *cfg = dev->config;
-
     int32_t millivolts = data->millivolts;
-
-    if (chan == SENSOR_CHAN_VOLTAGE) {
+    switch (chan) {
+    case SENSOR_CHAN_VOLTAGE:
         return sensor_value_from_milli(val, millivolts);
-    } else if (chan == SENSOR_CHAN_GAUGE_STATE_OF_CHARGE) {
+
+    case SENSOR_CHAN_GAUGE_STATE_OF_CHARGE: {
         int current_index = 0;
-        while (current_index < BATTERY_VOLTAGE_LEVELS &&
-               millivolts < battery_voltages[current_index++]) {
+        int max_index = ARRAY_SIZE(battery_voltages);
+        while (current_index < max_index && millivolts < battery_voltages[current_index++]) {
+            // Nothing while we get the right index
         }
-        return 10 * current_index;
+
+        // Store battery % in val
+        val->val1 = 10 * current_index;
+        return (0);
     }
 
-    return -ENOTSUP;
+    default:
+        return (-ENOTSUP);
+    }
 }
 
 static DEVICE_API(sensor, xiao_bat_driver_api) = {.sample_fetch = xiao_bat_sample_fetch,

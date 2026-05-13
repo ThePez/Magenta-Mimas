@@ -1,3 +1,4 @@
+# Need this so that Zephyr's build system can find the drivers folder down here
 build:
   cmake: .
   kconfig: Kconfig
