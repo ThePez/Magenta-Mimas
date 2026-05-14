@@ -9,9 +9,8 @@
 
 #define DT_DRV_COMPAT xiao_battery
 
-#define POST_GPIO_WAIT_MS 10
-#define PRIORITY          (-1)
-#define STACK_SIZE        1024
+#define PRIORITY   (-1)
+#define STACK_SIZE 1024
 
 #define VOLTAGE_DIVIDER_XIAO (510.0 / 1000.0)
 
@@ -50,21 +49,12 @@ static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
     }
 
     while (1) {
-        if (gpio_pin_set_dt(&(cfg->read_pin), 0) < 0) {
-            LOG_ERR("Failed to set battery read pin low");
-        }
-
-        k_msleep(POST_GPIO_WAIT_MS);
         ret = adc_read_dt(&(cfg->adc), &seq);
 
         if (ret < 0) {
             LOG_ERR("Error reading ADC: %d", ret);
         } else {
             atomic_set(&(data->raw), buf);
-        }
-
-        if (gpio_pin_set_dt(&(cfg->read_pin), 1) < 0) {
-            LOG_ERR("Failed to set battery read pin high");
         }
 
         k_sleep(K_SECONDS(cfg->sampling_time));
@@ -86,9 +76,16 @@ static int __used xiao_bat_init(const struct device *dev)
         return (-ENODEV);
     }
 
+    // Setting up the devices...
     int ret = gpio_pin_configure_dt(&(cfg->read_pin), GPIO_OUTPUT_ACTIVE);
     if (ret < 0) {
         LOG_ERR("GPIO not configured as output: %d", ret);
+        return (ret);
+    }
+
+    ret = gpio_pin_set_dt(&(cfg->read_pin), 0);
+    if (ret < 0) {
+        LOG_ERR("Failed to set battery read pin low");
         return (ret);
     }
 
