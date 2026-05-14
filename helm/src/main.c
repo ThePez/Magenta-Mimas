@@ -5,6 +5,7 @@
  */
 
 #include <zephyr/kernel.h>
+#include <zephyr/sys/reboot.h>
 
 #include "gatt.h"
 #include "imu.h"
@@ -19,16 +20,22 @@ int main(void)
     printk("CSSE4011 Project %s Chip\r\n", DEVICE_NAME);
 
     if (initialise_magnet_sensor()) {
-        return -1;
+        goto reboot;
     }
 
     if (initialise_imu()) {
-        return -1;
+        goto reboot;
     }
 
     if (initialise_helm_gatt()) {
-        return -1;
+        goto reboot;
     }
 
     printk("[INFO] Mobile node initialization complete\n");
+    return (0);
+
+reboot:
+    // sys_reboot doesn't return
+    sys_reboot(SYS_REBOOT_WARM);
+    return (-1);
 }
