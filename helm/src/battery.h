@@ -11,6 +11,5 @@
 
 int get_battery_voltage(double *value);
 int get_battery_charge(int32_t *value);
-int initialise_bat_charge(void);
 
 #endif

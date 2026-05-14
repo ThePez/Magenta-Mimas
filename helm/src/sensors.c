@@ -54,8 +54,6 @@ static void send_bat_pak_thread(void *, void *, void *)
             bat_packet.crc16 = 0;
             bat_packet.crc16 = crc16_ansi((char*) &bat_packet, sizeof(struct bat_packet));
 
-            printk("Battery: charge: %d | crc16: 0x%04x\n", bat_packet.bat_charge_pc,
-                   bat_packet.crc16);
             send_data_nus(&bat_packet, sizeof(struct bat_packet));
         }
 
@@ -85,11 +83,6 @@ static void send_sensor_thread(void *, void *, void *)
 
         sensor_packet.crc16 = 0;
         sensor_packet.crc16 = crc16_ansi((char*) &sensor_packet, sizeof(struct sensor_packet));
-
-        printk("Sensor: Time since last magnet: %lldms | gyro: %f rad/s | accel: %f m/s^2 | crc16: "
-               "0x%04x\n",
-               sensor_packet.magnet_dt, sensor_packet.imu_data.gyro_rads,
-               sensor_packet.imu_data.accel_ms2, sensor_packet.crc16);
 
         send_data_nus(&sensor_packet, sizeof(struct sensor_packet));
     }

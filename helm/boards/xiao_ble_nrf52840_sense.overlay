@@ -11,15 +11,6 @@
         read-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
     };
 
-    gpio_output {
-        compatible = "gpio-leds";
-
-        bat_chg_en_pin: bat_chg_en_pin {
-            gpios = <&gpio0 17 (GPIO_PULL_DOWN | GPIO_ACTIVE_LOW)>;
-            label = "Enable charging GPIO pin";
-        };
-    };
-
     gpio_input {
         compatible = "gpio-leds";
 
@@ -31,7 +22,6 @@
 
 	aliases {
 		magnet-pin = &magnet_pin;
-        bat-chg-en-pin = &bat_chg_en_pin;
         xiao-bat = &xiao_bat;
 	};
 };

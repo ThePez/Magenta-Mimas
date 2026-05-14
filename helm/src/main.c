@@ -6,7 +6,6 @@
 
 #include <zephyr/kernel.h>
 
-#include "battery.h"
 #include "gatt.h"
 #include "imu.h"
 #include "magnet.h"
@@ -24,10 +23,6 @@ int main(void)
     }
 
     if (initialise_imu()) {
-        return -1;
-    }
-
-    if (initialise_bat_charge()) {
         return -1;
     }
 
