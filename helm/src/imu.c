@@ -12,18 +12,8 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/sys/util.h>
 
-#define X_AXIS 0
-#define Y_AXIS 1
-#define Z_AXIS 2
-
 #define SAMPLING_FREQ 416
 #define GYRO_RANGE    1000
-
-#define MUTEX_WAIT_MS 5
-#define PRIORITY      7
-#define STACK_SIZE    1024
-
-K_MUTEX_DEFINE(imu_mutex);
 
 /* ********************************************************************************************* */
 /* Constants                                                                                     */
@@ -35,8 +25,8 @@ static const struct device *const lsm6dsl_dev = DEVICE_DT_GET_ONE(st_lsm6dsl);
 /* State                                                                                         */
 /* ********************************************************************************************* */
 
-static struct sensor_value accel_x;
-static struct sensor_value gyro_z;
+/* Message queue of depth 1 - we are only interested in the last item. */
+K_MSGQ_DEFINE(imu_q, sizeof(struct imu_data), 1, 1);
 
 /* ********************************************************************************************* */
 /* Functions                                                                                     */
@@ -44,18 +34,22 @@ static struct sensor_value gyro_z;
 
 static void lsm6dsl_trigger_handler(const struct device *dev, const struct sensor_trigger *trig)
 {
-    // accelerometer
+    struct sensor_value accel_x;
+    struct sensor_value gyro_z;
+
     sensor_sample_fetch_chan(dev, SENSOR_CHAN_ACCEL_XYZ);
     sensor_sample_fetch_chan(dev, SENSOR_CHAN_GYRO_XYZ);
-
-    if (k_mutex_lock(&imu_mutex, K_MSEC(MUTEX_WAIT_MS)) != 0) {
-        printk("Mutex not unlocking!\n");
-    }
 
     sensor_channel_get(dev, SENSOR_CHAN_ACCEL_X, &accel_x);
     sensor_channel_get(dev, SENSOR_CHAN_GYRO_Z, &gyro_z);
 
-    k_mutex_unlock(&imu_mutex);
+    struct imu_data data = {.gyro_deg = sensor_rad_to_degrees(&gyro_z),
+                            .accel_ms2 = sensor_value_to_double(&accel_x)};
+
+    // We are only interested in the last item.
+    while (k_msgq_put(&imu_q, &data, K_NO_WAIT) != 0) {
+        k_msgq_purge(&imu_q);
+    }
 }
 
 int initialise_imu(void)
@@ -106,35 +100,3 @@ int initialise_imu(void)
 
     return 0;
 }
-
-/* BELOW IS JUST FOR TESTING */
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-static void sensor_readout_thread(void *, void *, void *)
-{
-    int32_t gyro_deg;
-    double accel_double;
-
-    while (1) {
-        if (k_mutex_lock(&imu_mutex, K_MSEC(MUTEX_WAIT_MS)) != 0) {
-            printk("Mutex not unlocking!\n");
-        }
-
-        gyro_deg = sensor_rad_to_degrees(&gyro_z);
-        accel_double = sensor_value_to_double(&accel_x);
-
-        k_mutex_unlock(&imu_mutex);
-
-        printk("LSM6DSL sensor samples: \r\n");
-        printk("gyro z: %d deg/s | accel x: %f m/s^2\r\n\r\n", gyro_deg, accel_double);
-
-        k_msleep(500);
-    }
-}
-
-K_THREAD_DEFINE(sensor_readout, STACK_SIZE, sensor_readout_thread, NULL, NULL, NULL, PRIORITY, 0,
-                10000);

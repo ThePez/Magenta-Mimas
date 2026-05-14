@@ -10,6 +10,9 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 
+/* Message queue of depth 1 - we are only interested in the last item. */
+K_MSGQ_DEFINE(magnet_time_q, sizeof(int64_t), 1, 1);
+
 /* Magnet pin interrupt - for hall effect or reed switch */
 static const struct gpio_dt_spec magnet_pin = GPIO_DT_SPEC_GET(DT_ALIAS(magnet_pin), gpios);
 
@@ -18,7 +21,12 @@ static struct gpio_callback magnet_cb_data;
 /* Callback function on pin interrupt */
 static void magnet_pin_cb(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-    printk("Here\n");
+    int64_t current_time_ms = k_uptime_get();
+
+    // Try to add the currnet time - if the queue is full, purge it and try again
+    while (k_msgq_put(&magnet_time_q, &current_time_ms, K_NO_WAIT) != 0) {
+        k_msgq_purge(&magnet_time_q);
+    }
 }
 
 int initialise_magnet_sensor(void)

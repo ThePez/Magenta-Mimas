@@ -7,6 +7,15 @@
 #ifndef IMU_H
 #define IMU_H
 
+#include <zephyr/kernel.h>
+
+struct imu_data {
+    int32_t gyro_deg;
+    double accel_ms2;
+};
+
+extern struct k_msgq imu_q;
+
 int initialise_imu(void);
 
 #endif

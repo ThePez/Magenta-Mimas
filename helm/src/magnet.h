@@ -7,6 +7,10 @@
 #ifndef MAGNET_H
 #define MAGNET_H
 
+#include <zephyr/kernel.h>
+
+extern struct k_msgq magnet_time_q;
+
 int initialise_magnet_sensor(void);
 
 #endif
