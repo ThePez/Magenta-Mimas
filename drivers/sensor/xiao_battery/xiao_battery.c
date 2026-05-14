@@ -1,8 +1,10 @@
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
+
 #include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
+
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
@@ -12,7 +14,8 @@
 #define PRIORITY   (-1)
 #define STACK_SIZE 1024
 
-#define VOLTAGE_DIVIDER_XIAO (510.0 / 1000.0)
+#define POST_GPIO_WAIT_MS    10
+#define VOLTAGE_DIVIDER_XIAO (510.0 / 1510.0)
 
 LOG_MODULE_REGISTER(xiao_bat, CONFIG_SENSOR_LOG_LEVEL);
 K_THREAD_STACK_DEFINE(sample_thread_stack, STACK_SIZE);
@@ -49,14 +52,23 @@ static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
     }
 
     while (1) {
-        ret = adc_read_dt(&(cfg->adc), &seq);
+        ret = gpio_pin_set_dt(&(cfg->read_pin), true);
+        if (ret < 0) {
+            LOG_ERR("Failed to set battery pin for reading");
+        }
+        k_msleep(POST_GPIO_WAIT_MS);
 
+        ret = adc_read_dt(&(cfg->adc), &seq);
         if (ret < 0) {
             LOG_ERR("Error reading ADC: %d", ret);
         } else {
             atomic_set(&(data->raw), buf);
         }
 
+        ret = gpio_pin_set_dt(&(cfg->read_pin), false);
+        if (ret < 0) {
+            LOG_ERR("Failed to set battery pin to disable reading");
+        }
         k_sleep(K_SECONDS(cfg->sampling_time));
     }
 }
@@ -80,12 +92,6 @@ static int __used xiao_bat_init(const struct device *dev)
     int ret = gpio_pin_configure_dt(&(cfg->read_pin), GPIO_OUTPUT_ACTIVE);
     if (ret < 0) {
         LOG_ERR("GPIO not configured as output: %d", ret);
-        return (ret);
-    }
-
-    ret = gpio_pin_set_dt(&(cfg->read_pin), 0);
-    if (ret < 0) {
-        LOG_ERR("Failed to set battery read pin low");
         return (ret);
     }
 

@@ -9,7 +9,6 @@
 
 #include <stdbool.h>
 
-int set_bat_charge(bool state);
 int initialise_bat_charge(void);
 
 #endif

@@ -15,9 +15,11 @@
 static const struct gpio_dt_spec bat_chg_en_pin = GPIO_DT_SPEC_GET(DT_ALIAS(bat_chg_en_pin), gpios);
 static const struct device *const xiao_battery = DEVICE_DT_GET_ONE(xiao_battery);
 
-int set_bat_charge(bool state)
+static atomic_t charging_state = ATOMIC_INIT(false);
+
+static int set_bat_charge(void)
 {
-    int ret = gpio_pin_set_dt(&bat_chg_en_pin, !state);
+    int ret = gpio_pin_set_dt(&bat_chg_en_pin, atomic_get(&charging_state));
 
     if (ret < 0) {
         printk("Error %d: Failed to set the battery reading state!\n", ret);
@@ -42,7 +44,8 @@ int initialise_bat_charge(void)
         return ret;
     }
 
-    return set_bat_charge(false);
+    atomic_set(&charging_state, false);
+    return set_bat_charge();
 }
 
 /* BELOW IS JUST FOR TESTING */
@@ -52,10 +55,29 @@ int initialise_bat_charge(void)
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+static int cmd_bat_chg_en(const struct shell *sh, size_t argc, char **argv)
+{
+    atomic_set(&charging_state, true);
+    return set_bat_charge();
+}
+
+static int cmd_bat_chg_dis(const struct shell *sh, size_t argc, char **argv)
+{
+    atomic_set(&charging_state, false);
+    return set_bat_charge();
+}
+
+static int cmd_bat_chg_get(const struct shell *sh, size_t argc, char **argv)
+{
+    bool value = atomic_get(&charging_state);
+    shell_print(sh, "Battery is currently%scharging", value ? " " : " not "); 
+    return 0;
+}
+
 static int cmd_voltage_read(const struct shell *sh, size_t argc, char **argv)
 {
     if (!device_is_ready(xiao_battery)) {
-        printk("Error - unable to start xiao battery\n");
+        shell_error(sh, "Error - unable to start xiao battery\n");
         return -1;
     }
 
@@ -67,8 +89,15 @@ static int cmd_voltage_read(const struct shell *sh, size_t argc, char **argv)
     return 0;
 }
 
+SHELL_STATIC_SUBCMD_SET_CREATE(battery_chg_cmds,
+                               SHELL_CMD(enable, NULL, "Enable charging", cmd_bat_chg_en),
+                               SHELL_CMD(disable, NULL, "Disable charging", cmd_bat_chg_dis),
+                               SHELL_CMD(get, NULL, "Get charging state", cmd_bat_chg_get),
+                               SHELL_SUBCMD_SET_END);
+
 SHELL_STATIC_SUBCMD_SET_CREATE(battery_cmds,
                                SHELL_CMD(volt, NULL, "Read voltage", cmd_voltage_read),
+                               SHELL_CMD(chg, &battery_chg_cmds, "Battery charging", NULL),
                                SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(battery, &battery_cmds, "Battery commands", NULL);
