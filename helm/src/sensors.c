@@ -9,6 +9,9 @@
 #include "imu.h"
 #include "magnet.h"
 
+#include <zephyr/kernel.h>
+#include <zephyr/sys/crc.h>
+
 #define STACK_SIZE        2048
 #define PRIORITY          3
 #define THREAD_DELAY      (5 * 1000)
@@ -23,28 +26,37 @@
 struct bat_packet {
     char node_num;
     int32_t bat_charge_pc;
+
+    uint16_t crc16;
 };
 
 struct sensor_packet {
     char node_num;
     struct imu_data imu_data;
     uint64_t magnet_dt;
+
+    uint16_t crc16;
 };
 
 /* ========================================================================== */
 /* Send data packet for battery voltage                                       */
 /* ========================================================================== */
 
-static struct bat_packet bat_packet = {.node_num = NODE_NUM, .bat_charge_pc = 0};
-static struct sensor_packet sensor_packet = {.node_num = NODE_NUM, .imu_data = {0}, .magnet_dt = 0};
+static struct bat_packet bat_packet = {.node_num = NODE_NUM, .bat_charge_pc = 0, .crc16 = 0};
+static struct sensor_packet sensor_packet = {
+    .node_num = NODE_NUM, .imu_data = {0}, .magnet_dt = 0, .crc16 = 0};
 
 // This is somewhat temporary
 static void send_bat_pak_thread(void *, void *, void *)
 {
     while (1) {
         if (get_battery_charge(&(bat_packet.bat_charge_pc)) == 0) {
-            printk("Battery: charge: %d\n", bat_packet.bat_charge_pc);
-            send_data_nus((char *)&bat_packet, sizeof(struct bat_packet));
+            bat_packet.crc16 = 0;
+            bat_packet.crc16 = crc16_ansi((char*) &bat_packet, sizeof(struct bat_packet));
+
+            printk("Battery: charge: %d | crc16: 0x%04x\n", bat_packet.bat_charge_pc,
+                   bat_packet.crc16);
+            send_data_nus(&bat_packet, sizeof(struct bat_packet));
         }
 
         k_msleep(BAT_PACKET_PERIOD);
@@ -70,11 +82,16 @@ static void send_sensor_thread(void *, void *, void *)
         sensor_packet.magnet_dt = (k_uptime_get() - magnet_time_ms);
 
         k_msgq_get(&imu_q, &(sensor_packet.imu_data), K_NO_WAIT);
-        printk("Sensor: Time since last magnet: %lldms | gyro: %f rad/s | accel: %f m/s^2\n",
-               sensor_packet.magnet_dt, sensor_packet.imu_data.gyro_rads,
-               sensor_packet.imu_data.accel_ms2);
 
-        send_data_nus((char *)&sensor_packet, sizeof(struct sensor_packet));
+        sensor_packet.crc16 = 0;
+        sensor_packet.crc16 = crc16_ansi((char*) &sensor_packet, sizeof(struct sensor_packet));
+
+        printk("Sensor: Time since last magnet: %lldms | gyro: %f rad/s | accel: %f m/s^2 | crc16: "
+               "0x%04x\n",
+               sensor_packet.magnet_dt, sensor_packet.imu_data.gyro_rads,
+               sensor_packet.imu_data.accel_ms2, sensor_packet.crc16);
+
+        send_data_nus(&sensor_packet, sizeof(struct sensor_packet));
     }
 }
 
