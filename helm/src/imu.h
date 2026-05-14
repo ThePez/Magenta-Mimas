@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef SENSOR_H
-#define SENSOR_H
+#ifndef IMU_H
+#define IMU_H
+
+int initialise_imu(void);
 
 #endif

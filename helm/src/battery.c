@@ -1,4 +1,8 @@
-/* Magnetic sensor - reed/HE TBD */
+/*
+ * Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #include "battery.h"
 
@@ -70,7 +74,7 @@ static int cmd_bat_chg_dis(const struct shell *sh, size_t argc, char **argv)
 static int cmd_bat_chg_get(const struct shell *sh, size_t argc, char **argv)
 {
     bool value = atomic_get(&charging_state);
-    shell_print(sh, "Battery is currently%scharging", value ? " " : " not "); 
+    shell_print(sh, "Battery is currently%scharging", value ? " " : " not ");
     return 0;
 }
 
@@ -81,11 +85,11 @@ static int cmd_voltage_read(const struct shell *sh, size_t argc, char **argv)
         return -1;
     }
 
-    struct sensor_value sensorVoltage;
+    struct sensor_value sensor_voltage;
     sensor_sample_fetch_chan(xiao_battery, SENSOR_CHAN_VOLTAGE);
-    sensor_channel_get(xiao_battery, SENSOR_CHAN_VOLTAGE, &sensorVoltage);
+    sensor_channel_get(xiao_battery, SENSOR_CHAN_VOLTAGE, &sensor_voltage);
 
-    shell_print(sh, "Voltage reading: %.3fV", sensor_value_to_double(&sensorVoltage));
+    shell_print(sh, "Voltage reading: %.3fV", sensor_value_to_double(&sensor_voltage));
     return 0;
 }
 

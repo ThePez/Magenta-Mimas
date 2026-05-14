@@ -8,6 +8,7 @@
 
 #include "battery.h"
 #include "gatt.h"
+#include "imu.h"
 #include "magnet.h"
 
 /* ========================================================================== */
@@ -19,6 +20,10 @@ int main(void)
     printk("CSSE4011 Project %s Chip\r\n", DEVICE_NAME);
 
     if (initialise_magnet_sensor()) {
+        return -1;
+    }
+
+    if (initialise_imu()) {
         return -1;
     }
 

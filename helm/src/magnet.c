@@ -1,4 +1,10 @@
-/* Magnetic sensor - reed/HE TBD */
+/*
+ * Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include "magnet.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
