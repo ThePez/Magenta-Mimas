@@ -51,7 +51,8 @@ int main(void)
 static void sensor_readout_thread(void *, void *, void *)
 {
     int64_t magnet_time_ms = 0;
-    struct imu_data imu_data = {.gyro_deg = 0, .accel_ms2 = 0};
+    double battery_voltage = 0;
+    struct imu_data imu_data = {0};
 
     while (1) {
         k_msgq_get(&magnet_time_q, &magnet_time_ms, K_NO_WAIT);
@@ -59,10 +60,14 @@ static void sensor_readout_thread(void *, void *, void *)
 
         k_msgq_get(&imu_q, &imu_data, K_NO_WAIT);
 
-        printk("Time since last magnet: %lldms | gyro: %d deg/s | accel: %f m/s^2\n",
-               current_time_ms - magnet_time_ms, imu_data.gyro_deg, imu_data.accel_ms2);
+        if (get_battery_voltage(&battery_voltage) == 0) {
+            printk("Time since last magnet: %lldms | gyro: %d deg/s | accel: %f m/s^2 | battery: "
+                   "%.3fV\n",
+                   current_time_ms - magnet_time_ms, imu_data.gyro_deg, imu_data.accel_ms2,
+                   battery_voltage);
 
-        k_msleep(500);
+            k_msleep(500);
+        }
     }
 }
 
