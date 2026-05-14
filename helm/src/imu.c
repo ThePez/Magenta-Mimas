@@ -43,7 +43,7 @@ static void lsm6dsl_trigger_handler(const struct device *dev, const struct senso
     sensor_channel_get(dev, SENSOR_CHAN_ACCEL_X, &accel_x);
     sensor_channel_get(dev, SENSOR_CHAN_GYRO_Z, &gyro_z);
 
-    struct imu_data data = {.gyro_deg = sensor_rad_to_degrees(&gyro_z),
+    struct imu_data data = {.gyro_rads = sensor_value_to_double(&gyro_z),
                             .accel_ms2 = sensor_value_to_double(&accel_x)};
 
     // We are only interested in the last item.

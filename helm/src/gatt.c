@@ -123,7 +123,7 @@ static void received(struct bt_conn *conn, const void *data, uint16_t len, void 
     ARG_UNUSED(ctx);
     ARG_UNUSED(conn);
 
-    printk("[INFO] Ping received");
+    printk("[INFO] Ping received\n");
     k_sem_give(&notif_sem);
 
     k_work_reschedule(&timeout_work, ACK_TIMEOUT);
@@ -273,11 +273,12 @@ int send_data_nus(const void *data, uint16_t len)
         return (-1);
     }
 
-    int ret = bt_nus_send(NULL, data, strlen(data));
+    int ret = bt_nus_send(NULL, data, len);
     if (ret == 0) {
         k_work_reschedule(&timeout_work, ACK_TIMEOUT);
     } else {
-        printk("[ERROR] Failed to send packet: %d\n", ret);
+        printk("[ERROR] Failed to send packet: %d\nPointer: %p Size: %d\n", ret, data, len);
     }
+
     return (ret);
 }

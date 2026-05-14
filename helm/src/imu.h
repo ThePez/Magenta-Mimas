@@ -10,7 +10,7 @@
 #include <zephyr/kernel.h>
 
 struct imu_data {
-    int32_t gyro_deg;
+    double gyro_rads;
     double accel_ms2;
 };
 

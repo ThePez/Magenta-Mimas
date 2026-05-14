@@ -141,9 +141,10 @@ static int xiao_bat_channel_get(const struct device *dev, enum sensor_channel ch
 
     case SENSOR_CHAN_GAUGE_STATE_OF_CHARGE: {
         int current_index = 0;
-        int max_index = ARRAY_SIZE(battery_voltages);
-        while (current_index < max_index && millivolts < battery_voltages[current_index++]) {
-            // Nothing while we get the right index
+        int max_index = ARRAY_SIZE(battery_voltages) - 1;
+
+        while (current_index < max_index && millivolts > battery_voltages[current_index]) {
+            current_index++;
         }
 
         // Store battery % in val

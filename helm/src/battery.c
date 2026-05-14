@@ -13,10 +13,6 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/gpio.h>
 
-#define STACK_SIZE         1024
-#define PRIORITY           2
-#define PACKET_PERIOD      (5 * 1000)
-#define PACKET_BUFFER_SIZE 50
 
 /* ========================================================================== */
 /* Devices                                                                    */
@@ -153,26 +149,3 @@ SHELL_STATIC_SUBCMD_SET_CREATE(battery_cmds,
                                SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(battery, &battery_cmds, "Battery commands", NULL);
-
-/* ========================================================================== */
-/* Send data packet for battery voltage                                       */
-/* ========================================================================== */
-
-// This is somewhat temporary
-static void send_bat_pak_thread(void *, void *, void *)
-{
-    double battery_voltage = 0;
-    char buffer[PACKET_BUFFER_SIZE];
-
-    while (1) {
-        if (get_battery_voltage(&battery_voltage) == 0) {
-            snprintf(buffer, PACKET_BUFFER_SIZE, "Battery: %.3fV", battery_voltage);
-            send_data_nus(buffer, strlen(buffer));
-        }
-
-        k_msleep(PACKET_PERIOD);
-    }
-}
-
-K_THREAD_DEFINE(send_bat_pak, STACK_SIZE, send_bat_pak_thread, NULL, NULL, NULL, PRIORITY, 0,
-                PACKET_PERIOD);
