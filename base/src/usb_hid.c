@@ -111,7 +111,7 @@ static struct hid_device_ops kb_ops = {
 /* USB stack event callback - enables/disables the device on VBUS attach/detach */
 static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const msg)
 {
-    printk("USBD message: %s", usbd_msg_type_string(msg->type));
+    printk("USBD message: %s\n", usbd_msg_type_string(msg->type));
 
     if (usbd_can_detect_vbus(ctx)) {
         if (msg->type == USBD_MSG_VBUS_READY) {
@@ -172,9 +172,9 @@ static void hid_thread(void *p1, void *p2, void *p3)
     }
 
     printk("[INFO] USB HID keyboard initialized\n");
-    uint8_t key = HID_KEY_A;
+    uint8_t key = HID_KEY_A; // FOR TESTING
     while (true) {
-        k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
+        k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT); // FOR TESTING
         k_msgq_get(&hid_key_msgq, &keycode, K_FOREVER);
 
         if (!kb_ready) {
@@ -195,7 +195,7 @@ static void hid_thread(void *p1, void *p2, void *p3)
             printk("[WARN] HID submit error (key up)\n");
         }
 
-        k_msleep(1000);
+        k_msleep(1000); // FOR TESTING
     }
 }
 

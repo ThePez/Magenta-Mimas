@@ -6,11 +6,8 @@
 
 #include "imu.h"
 
-#include <zephyr/kernel.h>
 #include <zephyr/device.h>
-#include <zephyr/devicetree.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/sys/util.h>
 
 #define SAMPLING_FREQ 416
 #define GYRO_RANGE    1000

@@ -5,13 +5,10 @@
  */
 
 #include "battery.h"
-#include "gatt.h"
 
-#include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/gpio.h>
 
 /* ========================================================================== */
 /* Devices                                                                    */
