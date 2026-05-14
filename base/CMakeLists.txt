@@ -10,4 +10,6 @@ target_sources(app PRIVATE
     src/gatt.c
     src/uart.c
     src/rb_tree.c
+    src/usbd_init.c
+    src/usb_hid.c
 )
