@@ -5,6 +5,7 @@
  */
 
 #include "battery.h"
+#include "gatt.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
@@ -12,14 +13,24 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/gpio.h>
 
-#define STACK_SIZE 1024
-#define PRIORITY   2
+#define STACK_SIZE         1024
+#define PRIORITY           2
+#define PACKET_PERIOD      (5 * 1000)
+#define PACKET_BUFFER_SIZE 50
+
+/* ========================================================================== */
+/* Devices                                                                    */
+/* ========================================================================== */
 
 /* Battery reading GPIO pin - active low */
 static const struct gpio_dt_spec bat_chg_en_pin = GPIO_DT_SPEC_GET(DT_ALIAS(bat_chg_en_pin), gpios);
 static const struct device *const xiao_battery = DEVICE_DT_GET_ONE(xiao_battery);
 
 static atomic_t charging_state = ATOMIC_INIT(false);
+
+/* ========================================================================== */
+/* Initialisation and settings                                                */
+/* ========================================================================== */
 
 static int set_bat_charge(void)
 {
@@ -82,6 +93,10 @@ int initialise_bat_charge(void)
     return set_bat_charge();
 }
 
+/* ========================================================================== */
+/* Shell commands                                                             */
+/* ========================================================================== */
+
 static int cmd_bat_chg_en(const struct shell *sh, size_t argc, char **argv)
 {
     atomic_set(&charging_state, true);
@@ -138,3 +153,26 @@ SHELL_STATIC_SUBCMD_SET_CREATE(battery_cmds,
                                SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(battery, &battery_cmds, "Battery commands", NULL);
+
+/* ========================================================================== */
+/* Send data packet for battery voltage                                       */
+/* ========================================================================== */
+
+// This is somewhat temporary
+static void send_bat_pak_thread(void *, void *, void *)
+{
+    double battery_voltage = 0;
+    char buffer[PACKET_BUFFER_SIZE];
+
+    while (1) {
+        if (get_battery_voltage(&battery_voltage) == 0) {
+            snprintf(buffer, PACKET_BUFFER_SIZE, "Battery: %.3fV", battery_voltage);
+            send_data_nus(buffer, strlen(buffer));
+        }
+
+        k_msleep(PACKET_PERIOD);
+    }
+}
+
+K_THREAD_DEFINE(send_bat_pak, STACK_SIZE, send_bat_pak_thread, NULL, NULL, NULL, PRIORITY, 0,
+                PACKET_PERIOD);

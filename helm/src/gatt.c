@@ -5,18 +5,47 @@
  */
 
 #include "gatt.h"
-#include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
+
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/services/nus.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
+
+#define ACK_TIMEOUT K_SECONDS(10)
+
+/* ========================================================================== */
+/* Workqueues for timeout/readvertising                                       */
+/* ========================================================================== */
 
 static struct k_work adv_restart_work;
-struct k_work_delayable timeout_work;
+static struct k_work_delayable timeout_work;
+
+K_SEM_DEFINE(notif_sem, 0, 1);
+
+/* ========================================================================== */
+/* Current BLE connection                                                     */
+/* ========================================================================== */
 
 static struct bt_conn *current_conn = NULL;
+static struct bt_le_adv_param adv_param;
 static uint64_t connect_time = 0;
 
-static struct bt_le_adv_param adv_param;
+/* ========================================================================== */
+/* Advertising Data                                                           */
+/* ========================================================================== */
+
+static const struct bt_data ad[] = {
+    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
+};
+
+static const struct bt_data sd[] = {
+    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_NUS_SRV_VAL),
+};
+
+/* ========================================================================== */
+/* Base and Mobile Node addresses                                             */
+/* ========================================================================== */
 
 static const bt_addr_le_t base_addr = {
     .type = BT_ADDR_LE_RANDOM, .a.val = {0xBB, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
@@ -37,7 +66,7 @@ static const bt_addr_le_t helm_addr[2] = {
         },
 };
 
-int set_static_address(void)
+static int set_static_address(void)
 {
 #ifdef CHIP_A
     int slot = 0;
@@ -47,7 +76,7 @@ int set_static_address(void)
 
     int err = bt_id_create((bt_addr_le_t *)&helm_addr[slot], NULL);
     if (err < 0) {
-        printk("Failed to create identity: %d\n", err);
+        printk("[ERROR] Failed to create identity: %d\n", err);
         return err;
     }
 
@@ -79,25 +108,13 @@ static int configure_accept_list(void)
 #endif
 
 /* ========================================================================== */
-/* Advertising Data                                                           */
-/* ========================================================================== */
-
-static const struct bt_data ad[] = {
-    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
-};
-
-static const struct bt_data sd[] = {
-    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_NUS_SRV_VAL),
-};
-
-/* ========================================================================== */
 /* NUS Callbacks                                                              */
 /* ========================================================================== */
 
 static void notif_enabled(bool enabled, void *ctx)
 {
     ARG_UNUSED(ctx);
+
     printk("%s() - %s\n", __func__, (enabled ? "Enabled" : "Disabled"));
 }
 
@@ -105,10 +122,11 @@ static void received(struct bt_conn *conn, const void *data, uint16_t len, void 
 {
     ARG_UNUSED(ctx);
     ARG_UNUSED(conn);
-    ARG_UNUSED(len);
 
-    // const char *data_char = (const char *)data;
-    printk("Data received: %s\n", (char *)data);
+    printk("[INFO] Ping received");
+    k_sem_give(&notif_sem);
+
+    k_work_reschedule(&timeout_work, ACK_TIMEOUT);
 }
 
 struct bt_nus_cb nus_listener = {
@@ -117,7 +135,7 @@ struct bt_nus_cb nus_listener = {
 };
 
 /* ========================================================================== */
-/* BLE Gatt Conection                                                         */
+/* BLE Gatt Disconnection timeout                                             */
 /* ========================================================================== */
 
 static void disconnect_timeout(struct k_work *work)
@@ -139,6 +157,10 @@ static void adv_restart(struct k_work *work)
     printk("[INFO] NUS Advertising restarted\n");
 }
 
+/* ========================================================================== */
+/* BLE Gatt Connection and Disconnection callbacks                            */
+/* ========================================================================== */
+
 static void connected(struct bt_conn *conn, uint8_t err)
 {
     if (err) {
@@ -148,14 +170,16 @@ static void connected(struct bt_conn *conn, uint8_t err)
     current_conn = bt_conn_ref(conn);
     connect_time = k_uptime_get();
     printk("[INFO] Connected\n");
+
     /* Start timeout watchdog - 10 seconds */
-    k_work_reschedule(&timeout_work, K_SECONDS(10));
+    k_work_reschedule(&timeout_work, ACK_TIMEOUT);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
     uint64_t duration = k_uptime_get() - connect_time;
     printk("[WARN] Disconnected (reason 0x%02x) after %llu ms\n", reason, duration);
+
     if (current_conn) {
         bt_conn_unref(current_conn);
         current_conn = NULL;
@@ -172,13 +196,21 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
     .disconnected = disconnected,
 };
 
-// Display new MTU values (buffer size for NUS)
+/* ========================================================================== */
+/* MTU callbacks                                                              */
+/* ========================================================================== */
+
 static void mtu_updated(struct bt_conn *conn, uint16_t tx, uint16_t rx)
 {
+    // Display new MTU values (buffer size for NUS)
     printk("[INFO] Updated MTU, TX: %d, RX: %d\n", tx, rx);
 }
 
 static struct bt_gatt_cb gatt_callbacks = {.att_mtu_updated = mtu_updated};
+
+/* ========================================================================== */
+/* GATT intialisation procedure                                               */
+/* ========================================================================== */
 
 int initialise_helm_gatt(void)
 {
@@ -195,7 +227,6 @@ int initialise_helm_gatt(void)
     }
 
     // These are added to the default Zephyr System Work Queue
-
     // Delayed work task for restarting ble advertising
     k_work_init(&adv_restart_work, adv_restart);
     // Delayed timer task to auto disconnect the GATT if no NUS sends occur in 10s
@@ -235,12 +266,18 @@ int initialise_helm_gatt(void)
     return 0;
 }
 
-void send_nus_temp(const char *const data)
+int send_data_nus(const void *data, uint16_t len)
 {
-    int ret = bt_nus_send(NULL, data, strlen(data));
-    if (ret == 0) {
-        k_work_reschedule(&timeout_work, K_SECONDS(10));
+    if (current_conn == NULL) {
+        printk("[INFO] Not connected to any device!\n");
+        return (-1);
     }
 
-    k_msleep(500);
+    int ret = bt_nus_send(NULL, data, strlen(data));
+    if (ret == 0) {
+        k_work_reschedule(&timeout_work, ACK_TIMEOUT);
+    } else {
+        printk("[ERROR] Failed to send packet: %d\n", ret);
+    }
+    return (ret);
 }

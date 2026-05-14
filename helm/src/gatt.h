@@ -7,7 +7,7 @@
 #ifndef GATT_H
 #define GATT_H
 
-#define WHITELIST // Enables connection whitelisting
+// #define WHITELIST // Enables connection whitelisting
 #define CHIP_A    // Swaps the name
 
 #ifdef CHIP_A
@@ -18,7 +18,11 @@
 
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 
+#include <zephyr/kernel.h>
+
+extern struct k_sem notif_sem;
+
 int initialise_helm_gatt(void);
-void send_nus_temp(const char *const data);
+int send_data_nus(const void* data, uint16_t len);
 
 #endif

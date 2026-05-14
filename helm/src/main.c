@@ -38,14 +38,7 @@ int main(void)
         return -1;
     }
 
-    printk("[INFO] Network initialization complete\n");
-
-    // The below will be deleted later.
-
-    const char *const data = "Goodbye";
-    while (1) {
-        send_nus_temp(data);
-    }
+    printk("[INFO] Mobile node initialization complete\n");
 }
 
 static void sensor_readout_thread(void *, void *, void *)
