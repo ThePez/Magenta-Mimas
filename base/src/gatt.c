@@ -4,24 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "gatt.h"
-
 #include "common.h"
+#include "gatt.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <zephyr/sys/printk.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/services/nus.h>
-#include "zephyr/sys/util.h"
-#include <zephyr/bluetooth/gatt.h>
-#include <zephyr/sys/atomic.h>
 #include <sys/errno.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/conn.h>
+#include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/hci.h>
+#include <zephyr/bluetooth/services/nus.h>
+#include <zephyr/bluetooth/uuid.h>
+#include <zephyr/sys/atomic.h>
+#include <zephyr/sys/crc.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/sys/util.h>
 
 /* ========================================================================== */
 /* Function Prototypes                                                        */
@@ -100,8 +100,8 @@ static struct conn_state connections[NUM_CONNECTIONS] = {
     [1] = {.intentional_disconnect = ATOMIC_INIT(0)},
 };
 
-K_MSGQ_DEFINE(battery_msg_queue, sizeof(struct ble_packet), 5, 4);
-K_MSGQ_DEFINE(sensor_msg_queue, sizeof(struct ble_packet), 20, 4);
+K_MSGQ_DEFINE(battery_msg_queue, sizeof(struct ble_packet), 4, 4);
+K_MSGQ_DEFINE(sensor_msg_queue, sizeof(struct ble_packet), 4, 4);
 
 /* ========================================================================== */
 /* Helpers                                                                    */
@@ -157,6 +157,11 @@ static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params
     }
 
     struct ble_packet *ble_packet = (struct ble_packet *)data;
+
+    if (ble_packet->crc16 != crc16_ansi((char *)&(ble_packet->data), sizeof(union ble_data))) {
+        return (BT_GATT_ITER_CONTINUE);
+    }
+
     switch (ble_packet->packet_id) {
     case SENSOR:
         k_msgq_put(&sensor_msg_queue, ble_packet, K_NO_WAIT);
