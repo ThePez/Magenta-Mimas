@@ -9,12 +9,14 @@
 #include "ukf.h"
 #include "matrix.h"
 #include "common.h"
+#include "gatt.h"
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "zephyr/kernel.h"
+#include "zephyr/sys/printk.h"
 #include "zephyr/toolchain.h"
 
 void wheel_measurement(double *state, double *a_out)
@@ -221,29 +223,51 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     ARG_UNUSED(dummy3);
 
     ukf_t ukf;
+    struct ble_packet control;
+    double accelA = 0; /* ignore warnings */
+    double accelB = 0; /* ignore warnings */
+    double ac; 
+    int64_t last_time = 0;
+    double dt;
+    double omega;
+    double centripetal;
+    int err;
+
     ukf_init(&ukf);
 
     while (1) {
-
-        /* double accelA = get accel A data;
-        double accelB = get accel B data;
-
-        remove gravity
-        double ac = 0.5 * (accelA + accelB);
-
-        ukf_predict(&ukf, 0.001);
-        int err = ukf_update(&ukf, ac);
-        if (err < 0) {
-            sad face
+        while (k_msgq_get(&sensor_msg_queue, &control, K_FOREVER) == 0) {
+            if (k_msgq_num_free_get(&sensor_msg_queue) == 4) {
+                break;
+            }
+            if (control.node_num == 0) {
+                accelA = control.data.sensor.imu_data.accel_ms2;
+            } else if (control.node_num == 1) {
+                accelB = control.data.sensor.imu_data.accel_ms2;
+            }
         }
 
-        double omega = ukf.x[0];
+        ac = 0.5 * (accelA + accelB);
+        printk("average: %f\n", ac);
 
-        double centripetal = omega * omega * RADIUS; */
+        if (last_time == 0) {
+            dt = 0.001;
+        } else {
+            dt = k_uptime_get() - last_time;
+        }
+        last_time = k_uptime_get();
+       
+        ukf_predict(&ukf, dt);
+        err = ukf_update(&ukf, accelA, accelB);
+        if (err < 0) {
+            printk("error on update\n");
+            break;
+        }
 
-        k_msleep(25);
-
+        omega = ukf.x[0];
+        centripetal = omega * omega * RADIUS;
+        printk("centripetal acceleration: %f\n", centripetal);
     }
 }
 
-K_THREAD_DEFINE(kalman_thread, 4096, thread_kalman, NULL, NULL, NULL, 7, 0, 0);
+K_THREAD_DEFINE(kalman_thread, 8192, thread_kalman, NULL, NULL, NULL, 7, 0, 0);
