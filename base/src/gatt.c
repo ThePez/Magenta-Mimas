@@ -6,6 +6,8 @@
 
 #include "gatt.h"
 
+#include "common.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -25,6 +27,7 @@
 /* Function Prototypes                                                        */
 /* ========================================================================== */
 
+static int start_scan(void);
 static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                              struct bt_gatt_discover_params *params);
 
@@ -97,8 +100,8 @@ static struct conn_state connections[NUM_CONNECTIONS] = {
     [1] = {.intentional_disconnect = ATOMIC_INIT(0)},
 };
 
-K_MSGQ_DEFINE(helm_status_msg_queue, sizeof(struct helm_status_data), 5, 4);
-K_MSGQ_DEFINE(helm_control_msg_queue, sizeof(struct helm_control_data), 20, 4);
+K_MSGQ_DEFINE(battery_msg_queue, sizeof(struct bat_packet), 5, 4);
+K_MSGQ_DEFINE(sensor_msg_queue, sizeof(struct sensor_packet), 20, 4);
 
 /* ========================================================================== */
 /* Helpers                                                                    */
@@ -153,15 +156,15 @@ static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params
         return (BT_GATT_ITER_STOP);
     }
 
-    struct helm_control_data *control;
-    struct helm_status_data *status;
+    struct sensor_packet *control;
+    struct bat_packet *status;
     printk("Packet recieved len: %u\n", length);
-    if (length == sizeof(struct helm_control_data)) {
-        control = (struct helm_control_data *)data;
-        k_msgq_put(&helm_control_msg_queue, control, K_NO_WAIT);
-    } else if (length == sizeof(struct helm_status_data)) {
-        status = (struct helm_status_data *)data;
-        k_msgq_put(&helm_status_msg_queue, status, K_NO_WAIT);
+    if (length == sizeof(struct sensor_packet)) {
+        control = (struct sensor_packet *)data;
+        k_msgq_put(&sensor_msg_queue, control, K_NO_WAIT);
+    } else if (length == sizeof(struct bat_packet)) {
+        status = (struct bat_packet *)data;
+        k_msgq_put(&battery_msg_queue, status, K_NO_WAIT);
     }
 
     return (BT_GATT_ITER_CONTINUE); /* keep receiving notifications */
@@ -389,31 +392,26 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
         return;
     }
 
-    /* Not connectable, ignore */
+    // Not connectable, ignore
     if (type != BT_GAP_ADV_TYPE_ADV_IND && type != BT_GAP_ADV_TYPE_ADV_DIRECT_IND &&
         type != BT_GAP_ADV_TYPE_EXT_ADV) {
         return;
     }
 
-    // char dev[BT_ADDR_LE_STR_LEN];
-    // bt_addr_le_to_str(addr, dev, sizeof(dev));
-    // printk("[INFO] device: %s, AD evt type %u, AD data len %u, RSSI %i\n", dev, type, ad->len,
-    //        rssi);
-
     // Stop scanning to form the connection
     bt_le_scan_stop();
 
-    /* Try Coded PHY first (longer range), fall back to standard 1M PHY */
+    // Try Coded PHY first (longer range), fall back to standard 1M PHY
     struct bt_le_conn_param *param = BT_LE_CONN_PARAM_DEFAULT;
     struct bt_conn_le_create_param *create_param = BT_CONN_LE_CREATE_CONN;
 
     create_param->options |= BT_CONN_LE_OPT_CODED;
     int err = bt_conn_le_create(addr, create_param, param, &connections[target_slot].conn);
-    if (err) {
+    if (err < 0) {
         printk("[WARN] Coded PHY connection failed (err %d), trying 1M PHY\n", err);
         create_param->options &= ~BT_CONN_LE_OPT_CODED;
         err = bt_conn_le_create(addr, create_param, param, &connections[target_slot].conn);
-        if (err) {
+        if (err < 0) {
             printk("[ERROR] Create connection failed (err %d)\n", err);
             if (start_scan() < 0) {
                 printk("[ERROR] Failed to resume scanning\n");
@@ -426,7 +424,7 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 /* STEP 1: START SCANNING                                                     */
 /* Also called again after disconnection to resume scanning.                  */
 /* ========================================================================== */
-int start_scan(void)
+static int start_scan(void)
 {
     int err;
 
@@ -439,11 +437,11 @@ int start_scan(void)
 
     /* Try with Coded PHY first, fall back to standard 1M PHY */
     err = bt_le_scan_start(&scan_param, device_found);
-    if (err) {
+    if (err < 0) {
         printk("[WARN] Scanning with Coded PHY support failed (err %d)\n", err);
         scan_param.options &= ~BT_LE_SCAN_OPT_CODED;
         err = bt_le_scan_start(&scan_param, device_found);
-        if (err) {
+        if (err < 0) {
             printk("[ERROR] Scanning failed to start (err %d)\n", err);
             return (err);
         }
@@ -495,14 +493,8 @@ static void mtu_exchange_cb(struct bt_conn *conn, uint8_t err,
 }
 
 static struct bt_gatt_exchange_params mtu_exchange_params[NUM_CONNECTIONS] = {
-    [0] =
-        {
-            .func = mtu_exchange_cb,
-        },
-    [1] =
-        {
-            .func = mtu_exchange_cb,
-        },
+    {.func = mtu_exchange_cb},
+    {.func = mtu_exchange_cb},
 };
 
 /* ========================================================================== */
@@ -530,16 +522,17 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
 
     printk("[INFO] Connected: %s\n", addr);
 
-    /* Request data length extension (over-the-air packet size) */
+    // Request data length extension (over-the-air packet size)
     update_data_length(conn);
 
-    /* Request MTU exchange (GATT payload size) */
+    // Request MTU exchange (GATT payload size)
     int err = bt_gatt_exchange_mtu(conn, &mtu_exchange_params[slot]);
     if (err) {
         printk("[ERROR] MTU exchange request failed (err %d)", err);
     }
 
-    set_discover_nus_service(&connections[slot]); /* kick off STEP 3 */
+    /* kick off STEP 3 */
+    set_discover_nus_service(&connections[slot]);
     if (find_first_free_slot() >= 0) {
         if (start_scan() < 0) {
             printk("[ERROR] Failed to resume scanning after partial connect\n");
@@ -622,12 +615,37 @@ int close_connection(int slot)
 /* used for all advertising and connections, preventing RPA rotation from     */
 /* breaking MAC-based filtering and whitelisting on the peripherals.          */
 /* ========================================================================== */
-int set_static_address(void)
+static int set_static_address(void)
 {
     int err = bt_id_create((bt_addr_le_t *)&base_addr, NULL);
     if (err < 0) {
         printk("Failed to create identity: %d\n", err);
         return err;
+    }
+
+    return 0;
+}
+
+int initialise_base_gatt(void)
+{
+    int err = set_static_address();
+    if (err < 0) {
+        printk("[ERROR] Failed to set static MAC\n");
+        return (err);
+    }
+
+    err = bt_enable(NULL);
+    if (err) {
+        printk("[ERROR] Bluetooth init failed (err %d)\n", err);
+        return (err);
+    }
+
+    printk("[INFO] Bluetooth initialized\r\n");
+
+    err = start_scan(); /* STEP 1 for GATT process */
+    if (err < 0) {
+        printk("Initial scan failed (err %d)\n", err);
+        return (err);
     }
 
     return 0;

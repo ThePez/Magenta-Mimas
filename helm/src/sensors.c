@@ -5,6 +5,9 @@
  */
 
 #include "battery.h"
+
+#include "common.h"
+
 #include "gatt.h"
 #include "imu.h"
 #include "magnet.h"
@@ -22,19 +25,6 @@
 #else
 #define NODE_NUM 1
 #endif
-
-struct bat_packet {
-    int32_t bat_charge_pc;
-    uint16_t crc16;
-    char node_num;
-};
-
-struct sensor_packet {
-    struct imu_data imu_data;
-    uint64_t magnet_dt;
-    uint16_t crc16;
-    char node_num;
-};
 
 /* ========================================================================== */
 /* Static Data                                                                */

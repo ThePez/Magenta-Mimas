@@ -7,7 +7,7 @@
 #ifndef GATT_H
 #define GATT_H
 
-// #define WHITELIST // Enables connection whitelisting
+#define WHITELIST // Enables connection whitelisting
 #define CHIP_A    // Swaps the name
 
 #ifdef CHIP_A

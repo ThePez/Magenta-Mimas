@@ -6,6 +6,8 @@
 
 #include "imu.h"
 
+#include "common.h"
+
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 

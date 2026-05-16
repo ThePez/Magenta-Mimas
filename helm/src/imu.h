@@ -9,11 +9,6 @@
 
 #include <zephyr/kernel.h>
 
-struct imu_data {
-    double gyro_rads;
-    double accel_ms2;
-};
-
 extern struct k_msgq imu_q;
 
 int initialise_imu(void);

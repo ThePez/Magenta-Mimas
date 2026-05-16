@@ -269,7 +269,7 @@ int initialise_helm_gatt(void)
 int send_data_nus(const void *data, uint16_t len)
 {
     if (current_conn == NULL) {
-        printk("[INFO] Not connected to any device!\n");
+        // printk("[INFO] Not connected to any device!\n");
         return (-1);
     }
 
