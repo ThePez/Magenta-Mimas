@@ -8,11 +8,10 @@
 #define GATT_H
 
 #define WHITELIST // Enables connection whitelisting
-#define CHIP_A    // Swaps the name
 
-#ifdef CHIP_A
+#if (NODE_ID == 0)
 #define DEVICE_NAME "Helm-A"
-#else
+#elif (NODE_ID == 1)
 #define DEVICE_NAME "Helm-B"
 #endif
 
