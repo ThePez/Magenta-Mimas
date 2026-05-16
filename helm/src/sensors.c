@@ -17,9 +17,9 @@
 #define PRIORITY             3
 #define STACK_SIZE           2048
 
-#ifdef CHIP_A
+#if (NODE_ID == 0)
 #define NODE_NUM 0
-#else
+#elif (NODE_ID == 1)
 #define NODE_NUM 1
 #endif
 

@@ -1,17 +1,17 @@
 default_board := "xiao_ble/nrf52840/sense"
 
-all target:
-    just build {{target}}
+all target id:
+    just build {{target}} {{id}}
     just flash {{target}}
 
 flash target:
     west flash --runner uf2 -d {{target}}/build
 
-build target:
+build target id:
     west build -p \
         -b {{default_board}} \
         -d {{target}}/build \
-        {{target}}
+        {{target}} -- -DID={{id}}
 
     # Fix clangd warnings
     @sed -i 's/-fno-reorder-functions//g' {{target}}/build/compile_commands.json
