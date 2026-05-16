@@ -1,16 +1,21 @@
 /*
- * Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+* Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
+*
+* SPDX-License-Identifier: Apache-2.0
+*/
 
 /* TODO: I have bullshited all the numbers... */
 
 #include "ukf.h"
 #include "matrix.h"
+#include "common.h"
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
+
+#include "zephyr/kernel.h"
+#include "zephyr/toolchain.h"
 
 void wheel_measurement(double *state, double *a_out)
 {
@@ -209,15 +214,18 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
     return (0);
 }
 
-/* for the thread... */
-/*
+void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
+{
+    ARG_UNUSED(dummy1);
+    ARG_UNUSED(dummy2);
+    ARG_UNUSED(dummy3);
 
     ukf_t ukf;
     ukf_init(&ukf);
 
-    while(1) {
+    while (1) {
 
-        double accelA = get accel A data;
+        /* double accelA = get accel A data;
         double accelB = get accel B data;
 
         remove gravity
@@ -231,8 +239,11 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
 
         double omega = ukf.x[0];
 
-        double centripetal = omega * omega * RADIUS;
+        double centripetal = omega * omega * RADIUS; */
+
+        k_msleep(25);
 
     }
+}
 
-*/
+K_THREAD_DEFINE(kalman_thread, 4096, thread_kalman, NULL, NULL, NULL, 7, 0, 0);
