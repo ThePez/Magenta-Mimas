@@ -148,3 +148,14 @@ xiao_ble
 .cache
 compile_commands.json
 .idea
+
+
+.idea/*
+**/Library
+**/StreamingAssets/*.mp4
+**/Temp
+**/Logs
+**/UserSettings
+**/obj
+**/Build
+**/.idea
