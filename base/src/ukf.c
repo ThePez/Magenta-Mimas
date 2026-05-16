@@ -257,7 +257,7 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         }
         last_time = k_uptime_get();
        
-        ukf_predict(&ukf, 0.001);
+        ukf_predict(&ukf, dt);
         err = ukf_update(&ukf, accelA, accelB);
         if (err < 0) {
             printk("error on update\n");
