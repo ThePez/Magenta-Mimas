@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Video;
 using System.IO;
 
-public class VideoSphereSpawnerFixedScale : MonoBehaviour
+public class VideoSpawner : MonoBehaviour
 {
     [Header("Prefabs & Camera")] public GameObject spherePrefab;
     public Camera mainCamera;
