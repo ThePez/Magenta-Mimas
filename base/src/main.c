@@ -27,7 +27,7 @@ int main(void)
     }
 
     char *data = "Base says hi";
-    struct sensor_packet control;
+    struct ble_packet control;
     int64_t prev = 0;
     while (1) {
         int64_t current = k_uptime_get();
@@ -38,8 +38,8 @@ int main(void)
 
         if (k_msgq_get(&sensor_msg_queue, &control, K_NO_WAIT) == 0) {
             printk("Node ID: Helm-%c\n", control.node_num ? 'B' : 'A');
-            printk("acceleration: %f\n", control.imu_data.accel_ms2);
-            printk("gyroscope: %f\n", control.imu_data.gyro_rads);
+            printk("acceleration: %f\n", control.data.sensor.imu_data.accel_ms2);
+            printk("gyroscope: %f\n", control.data.sensor.imu_data.gyro_rads);
         }
 
         k_msleep(10);
