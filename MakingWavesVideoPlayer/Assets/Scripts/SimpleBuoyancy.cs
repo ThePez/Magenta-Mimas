@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering.HighDefinition;
 
 [RequireComponent(typeof(Rigidbody))]
-public class BuoyancyOnHDRPWater : MonoBehaviour
+public class SimpleBuoyancy : MonoBehaviour
 {
     public float floatHeight = 0.5f;     // how much above the water surface
     public float bounceDamping = 0.1f;   // smoothing vertical velocity
@@ -10,49 +10,45 @@ public class BuoyancyOnHDRPWater : MonoBehaviour
 
     private Rigidbody rb;
     private WaterSurface waterSurface;
-    private WaterSearchParameters searchParams;
-    private WaterSearchResult searchResult;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
 
         GameObject oceanObj = GameObject.Find("Ocean");
-        if (oceanObj == null)
+        if (!oceanObj)
         {
-            Debug.LogError("Buoyancy: No GameObject named 'Ocean' found in scene!");
             return;
         }
 
         waterSurface = oceanObj.GetComponent<WaterSurface>();
-        if (waterSurface == null)
-            Debug.LogError("Buoyancy: 'Ocean' has no WaterSurface component.");
-
-        // Initialize search parameters
-        searchParams = new WaterSearchParameters();
-        searchResult = new WaterSearchResult();
     }
 
     void FixedUpdate()
     {
-        if (waterSurface == null)
+        if (!waterSurface)
+        {
             return;
-
-        // Set up the search parameters
-        searchParams.startPositionWS = transform.position;
-        searchParams.targetPositionWS = transform.position + Vector3.up * 2f;
-        searchParams.error = 0.01f;
-        // Optionally set maxIterations if needed (older versions require)
-        searchParams.maxIterations = 8;
-
+        }
+        
+        WaterSearchParameters searchParams = new WaterSearchParameters
+        {
+            // Set up the search parameters
+            startPositionWS = transform.position,
+            targetPositionWS = transform.position + Vector3.up * 2f,
+            error = 0.01f,
+            
+            // Optionally set maxIterations if needed (older versions require)
+            maxIterations = 8
+        };
+        
         // Query the water surface
-        bool found = waterSurface.ProjectPointOnWaterSurface(searchParams, out searchResult);
-
-        if (!found)
+        if (!waterSurface.ProjectPointOnWaterSurface(searchParams, out var searchResult))
+        {
             return;
+        }
 
-        float waterY = searchResult.projectedPositionWS.y;
-        float depth = waterY - transform.position.y + floatHeight;
+        float depth = searchResult.projectedPositionWS.y - transform.position.y + floatHeight;
 
         if (depth > 0f)
         {

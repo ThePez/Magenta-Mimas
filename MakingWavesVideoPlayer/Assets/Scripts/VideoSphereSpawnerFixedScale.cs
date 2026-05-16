@@ -16,7 +16,7 @@ public class VideoSphereSpawnerFixedScale : MonoBehaviour
 
     void Start()
     {
-        if (mainCamera)
+        if (!mainCamera)
         {
             mainCamera = Camera.main;
         }
