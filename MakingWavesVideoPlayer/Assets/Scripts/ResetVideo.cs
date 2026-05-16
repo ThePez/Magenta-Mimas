@@ -16,10 +16,13 @@ public class  ResetVideo : MonoBehaviour
     void Update()
     {
         // Check if object is visible on the screen
-        if (!objectRenderer.isVisible && videoPlayer.frame > 5)
+        if (objectRenderer.isVisible || videoPlayer.frame == 5)
         {
-            // Set the video to the first frame if it's off screen
-            videoPlayer.frame = 0;
+            return;
         }
+        
+        // Set the video to the first frame if it's off-screen
+        videoPlayer.frame = 0;
+        videoPlayer.Pause();
     }
 }
