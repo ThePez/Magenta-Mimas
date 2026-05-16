@@ -158,15 +158,16 @@ static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params
 
     struct sensor_packet *control;
     struct bat_packet *status;
-    printk("Packet recieved len: %u\n", length);
-    if (length == sizeof(struct sensor_packet)) {
-        control = (struct sensor_packet *)data;
-        printk("acceleration: %f\n", control->imu_data.accel_ms2);
-        printk("gyroscope: %f\n", control->imu_data.gyro_rads);
+    struct ble_packet *ble_packet = (struct ble_packet *)data;
+    switch (ble_packet->packet_id) {
+    case SENSOR:
+        control = &(ble_packet->data.sensor);
         k_msgq_put(&sensor_msg_queue, control, K_NO_WAIT);
-    } else if (length == sizeof(struct bat_packet)) {
-        status = (struct bat_packet *)data;
+        break;
+    case BATTERY:
+        status = &(ble_packet->data.bat);
         k_msgq_put(&battery_msg_queue, status, K_NO_WAIT);
+        break;
     }
 
     return (BT_GATT_ITER_CONTINUE); /* keep receiving notifications */

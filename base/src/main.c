@@ -9,6 +9,8 @@
 #include <zephyr/sys/printk.h>
 
 #include "gatt.h"
+#include "common.h"
+#include <stdint.h>
 
 /* ========================================================================== */
 /* ENTRY POINT                                                                */
@@ -25,10 +27,22 @@ int main(void)
     }
 
     char *data = "Base says hi";
-
+    struct sensor_packet control;
+    int64_t prev = 0;
     while (1) {
-        send_sync_pulse_to_helms(data, strlen(data));
-        k_msleep(1000);
+        int64_t current = k_uptime_get();
+        if (current - prev > 1000) {
+            send_sync_pulse_to_helms(data, strlen(data));
+            prev = current;
+        }
+
+        if (k_msgq_get(&sensor_msg_queue, &control, K_NO_WAIT) == 0) {
+            printk("Node ID: Helm-%c\n", control.node_num ? 'B' : 'A');
+            printk("acceleration: %f\n", control.imu_data.accel_ms2);
+            printk("gyroscope: %f\n", control.imu_data.gyro_rads);
+        }
+
+        k_msleep(10);
     }
 
     return (0);

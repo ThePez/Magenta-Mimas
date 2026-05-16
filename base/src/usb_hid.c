@@ -172,9 +172,9 @@ static void hid_thread(void *p1, void *p2, void *p3)
     }
 
     printk("[INFO] USB HID keyboard initialized\n");
-    uint8_t key = HID_KEY_A; // FOR TESTING
+    // uint8_t key = HID_KEY_A; // FOR TESTING
     while (true) {
-        k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT); // FOR TESTING
+        // k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT); // FOR TESTING
         k_msgq_get(&hid_key_msgq, &keycode, K_FOREVER);
 
         if (!kb_ready) {

@@ -27,4 +27,19 @@ struct sensor_packet {
     char node_num;
 };
 
+union ble_data {
+    struct bat_packet bat;
+    struct sensor_packet sensor;
+};
+
+struct ble_packet {
+    uint8_t packet_id;
+    union ble_data data;
+};
+
+enum ble_packet_id {
+    SENSOR,
+    BATTERY
+};
+
 #endif
