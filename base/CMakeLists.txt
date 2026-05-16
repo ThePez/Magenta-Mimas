@@ -12,4 +12,5 @@ target_sources(app PRIVATE
     src/rb_tree.c
     src/usbd_init.c
     src/usb_hid.c
+    src/ukf.c
 )

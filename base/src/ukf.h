@@ -12,6 +12,12 @@
  #define SIGMA_POINTS (2 * NUM_STATES + 1)
 
  #define RADIUS 0.4
+ #define Q_OMEGA 0.01 /* higher value more unreliable system*/
+ #define Q_ACCEL 0.1 /* higher value more unreliable system*/
+ #define BIAS_A 1e-5
+ #define BIAS_B 1e-5
+ #define R 0.5 /* higher for untrustworthy sensor*/
+ #define LAMBDA 1.0 /* higher for more non-linearity */
 
  typedef struct {
     double x[NUM_STATES]; /* state matrix*/

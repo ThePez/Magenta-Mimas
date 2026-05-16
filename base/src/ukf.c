@@ -6,12 +6,13 @@
 
 /* TODO: I have bullshited all the numbers... */
 
- #include "ukf.h"
- #include "matix.h"
+#include "ukf.h"
+#include "matrix.h"
 #include <math.h>
+#include <string.h>
 
- void wheel_measurement(double *state, double *a_out)
- {
+void wheel_measurement(double *state, double *a_out)
+{
     double omega = state[0];
     double biasA = state[2];
     double biasB = state[3];
@@ -20,13 +21,13 @@
 
     a_out[0] = ac + biasA;
     a_out[1] = ac + biasB;
- }
+}
 
- void ukf_init(ukf_t *ukf)
- {
+void ukf_init(ukf_t *ukf)
+{
     memset(ukf, 0, sizeof(ukf_t));
 
-    ukf->lambda = 1.0;
+    ukf->lambda = LAMBDA;
 
     /* initial covariance */
     for (uint8_t i = 0; i < NUM_STATES; i++) {
@@ -34,14 +35,14 @@
     }
 
     /* process noise */
-    ukf->Q[0] = 0.01; /* omega */
-    ukf->Q[5] = 0.1; /* alpha */
-    ukf->Q[10] = 1e-5; /* biasA */
-    ukf->Q[15] = 1e-5; /* biasB */
+    ukf->Q[0] = Q_OMEGA; /* omega */
+    ukf->Q[5] = Q_ACCEL; /* accel */
+    ukf->Q[10] = BIAS_A; /* biasA */
+    ukf->Q[15] = BIAS_B; /* biasB */
 
     /* measurement noise */
-    ukf->R[0] = 0.5;
-    ukf->R[3] = 0.5;
+    ukf->R[0] = R;
+    ukf->R[3] = R;
 
     double denom = NUM_STATES + ukf->lambda;
 
@@ -52,10 +53,10 @@
         ukf->wm[i] = 1.0 / (2.0 * denom);
         ukf->wc[i] = ukf->wm[i];
     }
- }
+}
 
- void generate_sigma_points(ukf_t *ukf, double sigma[SIGMA_POINTS][NUM_STATES])
- {
+void generate_sigma_points(ukf_t *ukf, double sigma[SIGMA_POINTS][NUM_STATES])
+{
     double scale = sqrt(NUM_STATES + ukf->lambda);
 
     sigma[0][0] = ukf->x[0];
@@ -63,21 +64,22 @@
     sigma[0][2] = ukf->x[2];
     sigma[0][3] = ukf->x[3];
 
-    for(uint8_t i = 0; i < NUM_STATES; i++) {
+    for (uint8_t i = 0; i < NUM_STATES; i++) {
 
         double s = sqrt(ukf->P[i * NUM_STATES + i]) * scale;
 
         for (uint8_t j = 0; j < NUM_STATES; j++) {
-            sigma[i+1][j] = ukf->x[j];
-            sigma[i +1+NUM_STATES][j] = ukf->x[j];
+            sigma[i + 1][j] = ukf->x[j];
+            sigma[i + 1 + NUM_STATES][j] = ukf->x[j];
         }
 
-        sigma[i+1][i] += s;
-        sigma[i+1+NUM_STATES][i] -=s;
+        sigma[i + 1][i] += s;
+        sigma[i + 1 + NUM_STATES][i] -= s;
     }
- }
+}
 
-void ukf_predict(ukf_t *ukf, double dt) {
+void ukf_predict(ukf_t *ukf, double dt)
+{
     double sigma[SIGMA_POINTS][NUM_STATES];
 
     generate_sigma_points(ukf, sigma);
@@ -102,7 +104,7 @@ void ukf_predict(ukf_t *ukf, double dt) {
     /* covariance */
     memset(ukf->P, 0, sizeof(double) * NUM_STATES * NUM_STATES);
     for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
-        
+
         double dx[NUM_STATES];
 
         for (uint8_t j = 0; j < NUM_STATES; j++) {
@@ -122,7 +124,7 @@ void ukf_predict(ukf_t *ukf, double dt) {
     }
 }
 
-int ukf_update(ukf_t *ukf, double aA, double aB) 
+int ukf_update(ukf_t *ukf, double aA, double aB)
 {
     double sigma[SIGMA_POINTS][NUM_STATES];
     generate_sigma_points(ukf, sigma);
@@ -217,7 +219,7 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
         double accelA = get accel A data;
         double accelB = get accel B data;
 
-        remove gravity 
+        remove gravity
         double ac = 0.5 * (accelA + accelB);
 
         ukf_predict(&ukf, 0.001);
