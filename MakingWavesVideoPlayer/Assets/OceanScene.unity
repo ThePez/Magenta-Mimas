@@ -419,7 +419,7 @@ GameObject:
   - component: {fileID: 487241481}
   m_Layer: 0
   m_Name: Ocean
-  m_TagString: Untagged
+  m_TagString: Water
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -444,7 +444,7 @@ MonoBehaviour:
   ripplesFadeToggle: 1
   supportLargeCurrent: 0
   largeCurrentRes: 512
-  largeCurrentSpeedValue: 0
+  largeCurrentSpeedValue: 3
   largeCurrentMap: {fileID: 0}
   largeCurrentRegionExtent: {x: 100, y: 100}
   largeCurrentRegionOffset: {x: 0, y: 0}
@@ -512,11 +512,11 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  repetitionSize: 400
+  repetitionSize: 250
   largeOrientationValue: 0
-  largeWindSpeed: 16.9
-  largeChaos: 0.743
-  largeBand0Multiplier: 1
+  largeWindSpeed: 15.4
+  largeChaos: 0.765
+  largeBand0Multiplier: 0.969
   largeBand0FadeMode: 1
   largeBand0FadeStart: 1500
   largeBand0FadeDistance: 3000
@@ -524,11 +524,11 @@ MonoBehaviour:
   largeBand1FadeMode: 1
   largeBand1FadeStart: 300
   largeBand1FadeDistance: 800
-  ripples: 0
+  ripples: 1
   ripplesMotionMode: 0
   ripplesOrientationValue: 0
-  ripplesWindSpeed: 6.36
-  ripplesChaos: 0.749
+  ripplesWindSpeed: 4.47
+  ripplesChaos: 0.586
   ripplesFadeMode: 1
   ripplesFadeStart: 50
   ripplesFadeDistance: 200
@@ -541,20 +541,20 @@ MonoBehaviour:
   surfaceType: 0
   geometryType: 3
   meshRenderers: []
-  timeMultiplier: 1
+  timeMultiplier: 1.54
   scriptInteractions: 1
   cpuEvaluateRipples: 0
   customMaterial: {fileID: 0}
-  startSmoothness: 0.6564018
-  endSmoothness: 0.5564018
+  startSmoothness: 0.78571427
+  endSmoothness: 0.68571424
   smoothnessFadeStart: 100
   smoothnessFadeDistance: 500
   tessellation: 1
-  maxTessellationFactor: 3
+  maxTessellationFactor: 2.09
   tessellationFactorFadeStart: 150
   tessellationFactorFadeRange: 1850
   refractionColor: {r: 0.034208644, g: 0.024003372, b: 0.32296914, a: 1}
-  maxRefractionDistance: 0.5
+  maxRefractionDistance: 0.48
   absorptionDistance: 1.5
   scatteringColor: {r: 0, g: 0.13286833, b: 0.13286833, a: 1}
   ambientScattering: 0.2
@@ -615,6 +615,7 @@ GameObject:
   m_Component:
   - component: {fileID: 852557828}
   - component: {fileID: 852557827}
+  - component: {fileID: 852557829}
   m_Layer: 0
   m_Name: PlayerController
   m_TagString: Untagged
@@ -650,6 +651,18 @@ Transform:
   - {fileID: 1823688467}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &852557829
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 852557826}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ac509caf2b8c6340bc4b191860d1d0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuitProgram
 --- !u!1 &1308015383
 GameObject:
   m_ObjectHideFlags: 0
@@ -695,12 +708,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VideoSphereSpawnerFixedScale
   spherePrefab: {fileID: 1251749019863627719, guid: 7603c89f48296ab4ea20a32c75835505, type: 3}
+  screenPrefab: {fileID: 2450796547089758035, guid: 1bc7dd6266ee6a24eac95d61ede8a0af, type: 3}
   mainCamera: {fileID: 1823688466}
-  padding: 15
+  padding: 10
   planeHeight: 2.5
-  fixedPlaneHeight: 1.5
-  minViewAngle: 15
-  rotationStep: 5
 --- !u!1 &1823688464
 GameObject:
   m_ObjectHideFlags: 0
@@ -714,7 +725,6 @@ GameObject:
   - component: {fileID: 1823688465}
   - component: {fileID: 1823688468}
   - component: {fileID: 1823688470}
-  - component: {fileID: 1823688471}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -789,7 +799,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1823688464}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1.151, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -947,28 +957,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37f51ec26e144be429266e39494654a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayViudeoi
-  mainCamera: {fileID: 1823688466}
   raycastDistance: 30
-  yOffset: 4
+  yOffset: 1.75
   zoomSpeed: 3
   targetFOV: 15
   normalFOV: 60
   rotationAmount: -10
   rotationSpeed: 5
   centerThresholdEnter: 10
-  centerThresholdExit: 11
---- !u!114 &1823688471
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1823688464}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6ac509caf2b8c6340bc4b191860d1d0b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PauseMenuController
 --- !u!1 &2013410473
 GameObject:
   m_ObjectHideFlags: 1
