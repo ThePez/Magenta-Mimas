@@ -16,7 +16,7 @@
  #define Q_ACCEL 0.1 /* higher value more unreliable system*/
  #define BIAS_A 1e-5
  #define BIAS_B 1e-5
- #define R 0.5 /* higher for untrustworthy sensor*/
+ #define R_VAL 0.5 /* higher for untrustworthy sensor*/
  #define LAMBDA 1.0 /* higher for more non-linearity */
 
  typedef struct {
@@ -31,7 +31,7 @@
 
 void ukf_init(ukf_t *ukf);
 void ukf_predict(ukf_t *ukf, double dt);
-void ukf_update(ukf_t *ukf, double aA, double aB);
+int ukf_update(ukf_t *ukf, double aA, double aB);
 void wheel_measurement(double *state, double *a_out);
 
 #endif

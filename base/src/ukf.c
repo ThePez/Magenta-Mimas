@@ -10,6 +10,7 @@
 #include "matrix.h"
 #include <math.h>
 #include <string.h>
+#include <stdint.h>
 
 void wheel_measurement(double *state, double *a_out)
 {
@@ -41,8 +42,8 @@ void ukf_init(ukf_t *ukf)
     ukf->Q[15] = BIAS_B; /* biasB */
 
     /* measurement noise */
-    ukf->R[0] = R;
-    ukf->R[3] = R;
+    ukf->R[0] = R_VAL;
+    ukf->R[3] = R_VAL;
 
     double denom = NUM_STATES + ukf->lambda;
 
@@ -191,7 +192,7 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
 
     for (uint8_t i = 0; i < NUM_STATES; i++) {
         K[i][0] = Tc[i][0] * S_inv[0][0] + Tc[i][1] * S_inv[1][0];
-        K[i][1] = Tc[i][0] * S_inv[0][1] + Tc_[i][1] * S_inv[1][1];
+        K[i][1] = Tc[i][0] * S_inv[0][1] + Tc[i][1] * S_inv[1][1];
     }
 
     /* residual */
