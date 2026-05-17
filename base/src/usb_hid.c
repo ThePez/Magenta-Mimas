@@ -5,12 +5,14 @@
  */
 
 #include "usbd_init.h"
+
+#include <stdint.h>
+
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include "zephyr/sys/printk.h"
 #include <zephyr/usb/usbd.h>
 #include "zephyr/usb/class/hid.h"
-#include <stdint.h>
 #include <zephyr/usb/class/usbd_hid.h>
 
 /* ========================================================================== */
@@ -18,6 +20,21 @@
 /* ========================================================================== */
 
 #define HID_THREAD_PRIORITY 5
+
+// Speed options for keyboard output
+#define THRESHOLD_A 10
+#define THRESHOLD_B 20
+#define THRESHOLD_C 30
+
+// Keyboard output options
+#define SPEED_0_DIR_0 BIT(0) /* 1  */
+#define SPEED_1_DIR_0 BIT(1) /* 2  */
+#define SPEED_2_DIR_0 BIT(2) /* 4  */
+#define SPEED_3_DIR_0 BIT(3) /* 8  */
+#define SPEED_0_DIR_1 BIT(4) /* 16 */
+#define SPEED_1_DIR_1 BIT(5) /* 32 */
+#define SPEED_2_DIR_1 BIT(6) /* 64 */
+#define SPEED_3_DIR_1 BIT(7) /* 128 */
 
 /* ========================================================================== */
 /* Static Data                                                                */
@@ -40,7 +57,7 @@ enum kb_report_idx {
 };
 
 /* Keycode queue fed by other threads; hid_thread drains it */
-K_MSGQ_DEFINE(hid_key_msgq, sizeof(uint8_t), 8, 1);
+K_MSGQ_DEFINE(hid_key_msgq, sizeof(enum hid_kbd_code), 8, 1);
 
 /* DMA-safe report buffer - must stay allocated for the lifetime of each transfer */
 UDC_STATIC_BUF_DEFINE(report, KB_REPORT_COUNT);
@@ -53,7 +70,7 @@ static bool kb_ready;        /* true once the HID interface is enumerated */
 
 static void kb_iface_ready(const struct device *dev, const bool ready)
 {
-    printk("HID device %s interface is %s\n", dev->name, ready ? "ready" : "not ready");
+    // printk("HID device %s interface is %s\n", dev->name, ready ? "ready" : "not ready");
     kb_ready = ready;
 }
 
@@ -84,13 +101,11 @@ static uint32_t kb_get_idle(const struct device *dev, const uint8_t id)
 /* SET_PROTOCOL - not needed for a simple keyboard, return */
 static void kb_set_protocol(const struct device *dev, const uint8_t proto)
 {
-    return; // 
 }
 
 /* Output report from host - not needed for a simple keyboard, return */
 static void kb_output_report(const struct device *dev, const uint16_t len, const uint8_t *const buf)
 {
-    // kb_set_report(dev, HID_REPORT_TYPE_OUTPUT, 0U, len, buf);
 }
 
 /* Stores all the function pointer for the HID stack */
@@ -124,6 +139,52 @@ static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const 
                 printk("Failed to disable device support\n");
             }
         }
+    }
+}
+
+/* ========================================================================== */
+/* Keyboard Mapping                                                           */
+/* ========================================================================== */
+
+/* Map the inputs of speed and direction to 8 different output keys */
+enum hid_kbd_code translate_into_button(double speed, uint8_t direction)
+{
+    // Map Speed into 4 options
+    uint8_t code = 1;
+    if (speed < THRESHOLD_A) {
+        code <<= 0;
+    } else if (speed < THRESHOLD_B) {
+        code <<= 1;
+    } else if (speed < THRESHOLD_C) {
+        code <<= 2;
+    } else {
+        code <<= 3;
+    }
+
+    // Map direction into the 2 groups of 4 speeds
+    code <<= (direction == 1) ? 4 : 0;
+
+    // Output the desired key
+    switch (code) {
+    case SPEED_0_DIR_0:
+        return HID_KEY_F;
+    case SPEED_1_DIR_0:
+        return HID_KEY_D;
+    case SPEED_2_DIR_0:
+        return HID_KEY_S;
+    case SPEED_3_DIR_0:
+        return HID_KEY_A;
+    case SPEED_0_DIR_1:
+        return HID_KEY_H;
+    case SPEED_1_DIR_1:
+        return HID_KEY_J;
+    case SPEED_2_DIR_1:
+        return HID_KEY_K;
+    case SPEED_3_DIR_1:
+        return HID_KEY_L;
+    default:
+        // Shouldn't be possible
+        return HID_KEY_SPACE;
     }
 }
 
@@ -172,9 +233,9 @@ static void hid_thread(void *p1, void *p2, void *p3)
     }
 
     printk("[INFO] USB HID keyboard initialized\n");
-    // uint8_t key = HID_KEY_A; // FOR TESTING
-    while (true) {
-        // k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT); // FOR TESTING
+
+    while (1) {
+
         k_msgq_get(&hid_key_msgq, &keycode, K_FOREVER);
 
         if (!kb_ready) {
@@ -194,8 +255,6 @@ static void hid_thread(void *p1, void *p2, void *p3)
         if (hid_device_submit_report(hid_dev, KB_REPORT_COUNT, report)) {
             printk("[WARN] HID submit error (key up)\n");
         }
-
-        k_msleep(1000); // FOR TESTING
     }
 }
 

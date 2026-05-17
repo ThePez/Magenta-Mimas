@@ -9,6 +9,8 @@
 
 #include <zephyr/kernel.h>
 
+enum hid_kbd_code translate_into_button(double speed, uint8_t direction);
+
 extern struct k_msgq hid_key_msgq;
 
 #endif
