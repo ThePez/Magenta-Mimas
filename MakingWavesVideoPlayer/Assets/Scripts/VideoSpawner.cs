@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Video;
 using System.IO;
-using Unity.VisualScripting;
 using UnityEngine.Experimental.Rendering;
 
 public class VideoSpawner : MonoBehaviour
@@ -87,6 +86,7 @@ public class VideoSpawner : MonoBehaviour
         videoPlayer.audioOutputMode = VideoAudioOutputMode.Direct;
         videoPlayer.timeUpdateMode = VideoTimeUpdateMode.DSPTime;
 
+        screen.AddComponent<ResetVideo>();
         videoPlayer.Prepare();
     }
 }

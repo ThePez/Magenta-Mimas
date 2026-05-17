@@ -6,7 +6,43 @@ public class PlayerRotateWithInertia : MonoBehaviour
 
     void Update()
     {
-        Velocity = 4f; // Current velocity of rotation (measured in deg/s)
+        if (Input.GetKey(KeyCode.A))
+        {
+            Velocity = -20f;
+        }
+        else if (Input.GetKey(KeyCode.S))
+        {
+            Velocity = -10f;
+        }
+        else if (Input.GetKey(KeyCode.D))
+        {
+            Velocity = -5f;
+        }
+        else if (Input.GetKey(KeyCode.F))
+        {
+            Velocity = -2.5f;
+        }
+        else if (Input.GetKey(KeyCode.G))
+        {
+            Velocity = 2.5f;
+        }
+        else if (Input.GetKey(KeyCode.H))
+        {
+            Velocity = 5f;
+        }
+        else if (Input.GetKey(KeyCode.J))
+        {
+            Velocity = 10f;
+        }
+        else if (Input.GetKey(KeyCode.K))
+        {
+            Velocity = 20f;
+        }
+        else
+        {
+            Velocity = 0;
+        }
+
         transform.Rotate(Vector3.up, Velocity * Time.deltaTime);
     }
 }

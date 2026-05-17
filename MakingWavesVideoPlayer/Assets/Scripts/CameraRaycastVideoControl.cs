@@ -5,12 +5,10 @@ public class CameraRaycastVideoControl : MonoBehaviour
 {
     [Header("Configuration")] 
     public float raycastDistance = 30f;
-    public float yOffset = 4f; // Raise the ray origin a little
 
-    public float zoomSpeed = 3f;
+    public float zoomSpeed = 1f;
     public float targetFOV = 15f;
     public float normalFOV = 60f;
-    public float rotationAmount = 10f;
     public float rotationSpeed = 5f;
 
     [Header("Centering thresholds (fractions of screen width)")]
@@ -19,114 +17,99 @@ public class CameraRaycastVideoControl : MonoBehaviour
     // -------------------------------------------------
     // Private state
     // -------------------------------------------------
-    private VideoPlayer lastVideoPlayer;
     private float originalPitch; // Camera pitch at start
+    
+    private PlayerRotateWithInertia playerRotation;
+    private VideoPlayer lastVideoPlayer;
+    private VideoPlayer[] videoPlayers;
     private Camera mainCamera;
 
     void Start()
     {
         mainCamera = gameObject.GetComponent<Camera>();
+        playerRotation = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerRotateWithInertia>();
+        
         originalPitch = mainCamera.transform.eulerAngles.x;
+        videoPlayers = FindObjectsByType<VideoPlayer>();
     }
 
     void Update()
     {
         Transform parent = transform.parent;
-        if (!parent)
+
+        foreach (VideoPlayer vp in videoPlayers)
         {
+            Vector3 rayOrigin = parent.position;
+            rayOrigin.y = vp.transform.position.y;
+            Ray ray = new(rayOrigin, parent.forward);
+            
+            Debug.DrawRay(rayOrigin, rayOrigin + parent.forward * raycastDistance);
+
+            if (!Physics.Raycast(ray, out RaycastHit hitInfo, raycastDistance))
+            {
+                continue;
+            }
+
+            VideoPlayer videoPlayer = hitInfo.collider.GetComponent<VideoPlayer>();
+            
+            if (lastVideoPlayer != videoPlayer && playerRotation.Velocity == 0)
+            {
+                if (!videoPlayer.isPlaying)
+                {
+                    videoPlayer.Play();
+                }
+
+                lastVideoPlayer = videoPlayer;
+            }
+                
+            // **Zoom and rotate regardless of pause state** – the video remains playing
+            if (playerRotation.Velocity == 0)
+            {
+                ZoomCamera(targetFOV);
+
+                Quaternion current = mainCamera.transform.rotation;
+                current.SetLookRotation(hitInfo.transform.position - mainCamera.transform.position);
+
+                mainCamera.transform.rotation = Quaternion.Slerp(mainCamera.transform.rotation.normalized,
+                    current.normalized, rotationSpeed * Time.deltaTime);
+            }
+            else
+            {
+                ZoomCamera(normalFOV);
+                RotateCamera(originalPitch);
+            }
+
             return;
         }
-
-        Vector3 rayOrigin = parent.position + Vector3.up * yOffset;
-        Ray ray = new(rayOrigin, parent.forward);
-
-        if (Physics.Raycast(ray, out RaycastHit hitInfo, raycastDistance))
-        {
-            VideoPlayer hitVideoPlayer = hitInfo.collider.GetComponent<VideoPlayer>();
-            if (hitVideoPlayer)
-            {
-                if (lastVideoPlayer != hitVideoPlayer)
-                {
-                    if (!hitVideoPlayer.isPlaying)
-                    {
-                        hitVideoPlayer.Play();
-                    }
-
-                    lastVideoPlayer = hitVideoPlayer;
-                }
-                
-                Vector3 screenPos = mainCamera.WorldToScreenPoint(hitInfo.collider.gameObject.transform.position);
-                float distanceFromCenter = Mathf.Abs(screenPos.x - Screen.width * 0.5f);
-
-                // **Zoom and rotate regardless of pause state** – the video remains playing
-                if (distanceFromCenter <= Screen.width * centerThresholdEnter)
-                {
-                    ZoomCameraTowardsQuad();
-                    RotateCameraToFocusOnQuad();
-                }
-                else
-                {
-                    ResetCameraFOV();
-                }
-            }
-        }
-        else
-        {
-            // Ray hit nothing – pause everything
-            PauseAllVideos();
-
-            ResetCameraFOV();
-            SmoothlyResetCameraRotation();
-            lastVideoPlayer = null;
-        }
-    }
-
-    // -------------------------------------------------
-    // Helper: pause every VideoPlayer except the one we want active
-    // -------------------------------------------------
-    void PauseAllVideos()
-    {
-        // New API – no sorting, fastest mode
-        VideoPlayer[] allPlayers = FindObjectsByType<VideoPlayer>();
-
-        foreach (VideoPlayer vp in allPlayers)
+        
+        // Ray hit nothing – pause everything
+        ZoomCamera(normalFOV);
+        RotateCamera(originalPitch);
+            
+        foreach (VideoPlayer vp in videoPlayers)
         {
             if (vp.isPlaying)
             {
                 vp.Pause();
             }
         }
+        
+        lastVideoPlayer = null;
     }
 
     // -------------------------------------------------
     // Zoom and rotation helpers (clamped)
     // -------------------------------------------------
-    void ZoomCameraTowardsQuad()
+    private void ZoomCamera(float newZoom)
     {
-        float newFOV = Mathf.Lerp(mainCamera.fieldOfView, targetFOV, zoomSpeed * Time.deltaTime);
-        mainCamera.fieldOfView = Mathf.Clamp(newFOV, targetFOV, normalFOV);
+        mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, newZoom, zoomSpeed * Time.deltaTime);
     }
 
-    void ResetCameraFOV()
+    private void RotateCamera(float newPitch)
     {
-        float newFOV = Mathf.Lerp(mainCamera.fieldOfView, normalFOV, zoomSpeed * Time.deltaTime);
-        mainCamera.fieldOfView = Mathf.Clamp(newFOV, targetFOV, normalFOV);
-    }
-
-    void RotateCameraToFocusOnQuad()
-    {
-        float targetPitch = originalPitch + rotationAmount;
-        Quaternion targetRot = Quaternion.Euler(targetPitch, mainCamera.transform.eulerAngles.y,
-            mainCamera.transform.eulerAngles.z);
-        mainCamera.transform.rotation = Quaternion.Lerp(mainCamera.transform.rotation, targetRot,
-            rotationSpeed * Time.deltaTime);
-    }
-
-    void SmoothlyResetCameraRotation()
-    {
-        Quaternion targetRot = Quaternion.Euler(originalPitch, mainCamera.transform.eulerAngles.y,
-            mainCamera.transform.eulerAngles.z);
-        mainCamera.transform.rotation = Quaternion.Lerp(mainCamera.transform.rotation, targetRot,
+        Quaternion targetRot = Quaternion.Euler(newPitch, mainCamera.transform.eulerAngles.y,
+            mainCamera.transform.eulerAngles.z).normalized;
+        mainCamera.transform.rotation = Quaternion.RotateTowards(mainCamera.transform.rotation.normalized, targetRot, 
             rotationSpeed * Time.deltaTime);
     }
 }

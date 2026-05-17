@@ -512,10 +512,10 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  repetitionSize: 250
+  repetitionSize: 293
   largeOrientationValue: 0
-  largeWindSpeed: 15.4
-  largeChaos: 0.765
+  largeWindSpeed: 15.7
+  largeChaos: 0.808
   largeBand0Multiplier: 0.969
   largeBand0FadeMode: 1
   largeBand0FadeStart: 1500
@@ -527,8 +527,8 @@ MonoBehaviour:
   ripples: 1
   ripplesMotionMode: 0
   ripplesOrientationValue: 0
-  ripplesWindSpeed: 4.47
-  ripplesChaos: 0.586
+  ripplesWindSpeed: 8.67
+  ripplesChaos: 0.772
   ripplesFadeMode: 1
   ripplesFadeStart: 50
   ripplesFadeDistance: 200
@@ -710,7 +710,7 @@ MonoBehaviour:
   spherePrefab: {fileID: 1251749019863627719, guid: 7603c89f48296ab4ea20a32c75835505, type: 3}
   screenPrefab: {fileID: 2450796547089758035, guid: 1bc7dd6266ee6a24eac95d61ede8a0af, type: 3}
   mainCamera: {fileID: 1823688466}
-  padding: 10
+  padding: 20
   planeHeight: 2.5
 --- !u!1 &1823688464
 GameObject:
@@ -957,12 +957,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37f51ec26e144be429266e39494654a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayViudeoi
-  raycastDistance: 30
-  yOffset: 1.75
-  zoomSpeed: 3
-  targetFOV: 15
+  raycastDistance: 60
+  zoomSpeed: 1
+  targetFOV: 6
   normalFOV: 60
-  rotationAmount: -10
   rotationSpeed: 5
   centerThresholdEnter: 10
 --- !u!1 &2013410473
