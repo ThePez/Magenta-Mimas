@@ -278,6 +278,7 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
         // Drain all packets from the queue until a sensor packet from both nodes has been received
         while (received_mask != 0x03) {
             if (k_msgq_get(&gatt_msg_queue, &packet, K_FOREVER) == 0) {
+                rb_lock();
                 node = get_rb_node(packet.node_num);
                 if (node != NULL) {
                     int64_t current = k_uptime_get();
@@ -299,6 +300,8 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
                     }
                     }
                 }
+
+                rb_unlock();
             }
         }
 
