@@ -9,11 +9,12 @@
 #include "ukf.h"
 #include "matrix.h"
 #include "common.h"
-#include "gatt.h"
+#include "rb_tree.h"
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "zephyr/kernel.h"
 #include "zephyr/sys/printk.h"
@@ -35,27 +36,31 @@ void ukf_init(ukf_t *ukf)
 {
     memset(ukf, 0, sizeof(ukf_t));
 
-    ukf->lambda = LAMBDA;
+    const double alpha = ALPHA;
+    const double beta = BETA;
+    const double kappa = KAPPA;
+
+    ukf->lambda = alpha * alpha * (NUM_STATES + kappa) - NUM_STATES;
+
+    const double denom = NUM_STATES + ukf->lambda;
 
     /* initial covariance */
-    for (uint8_t i = 0; i < NUM_STATES; i++) {
-        ukf->P[i * NUM_STATES + i] = 1.0;
-    }
+    ukf->P[0 * NUM_STATES + 0] = 1.0;
+    ukf->P[1 * NUM_STATES + 1] = 0.1;
+    ukf->P[2 * NUM_STATES + 2] = 0.1;
 
     /* process noise */
-    ukf->Q[0] = Q_OMEGA; /* omega */
-    ukf->Q[5] = Q_ACCEL; /* accel */
-    ukf->Q[10] = BIAS_A; /* biasA */
-    ukf->Q[15] = BIAS_B; /* biasB */
+    ukf->Q[0 * NUM_STATES + 0] = Q_OMEGA; /* omega */
+    ukf->Q[1 * NUM_STATES + 1] = BIAS_A; /* biasA */
+    ukf->Q[2 * NUM_STATES + 2] = BIAS_B; /* biasB */
 
     /* measurement noise */
     ukf->R[0] = R_VAL;
     ukf->R[3] = R_VAL;
 
-    double denom = NUM_STATES + ukf->lambda;
-
+    /* ukf weights */
     ukf->wm[0] = ukf->lambda / denom;
-    ukf->wc[0] = ukf->wm[0];
+    ukf->wc[0] = ukf->wm[0] + (1.0 - alpha * alpha + beta);
 
     for (uint8_t i = 1; i < SIGMA_POINTS; i++) {
         ukf->wm[i] = 1.0 / (2.0 * denom);
@@ -63,62 +68,98 @@ void ukf_init(ukf_t *ukf)
     }
 }
 
-void generate_sigma_points(ukf_t *ukf, double sigma[SIGMA_POINTS][NUM_STATES])
+static int cholesky_decompose (double *A, double *L, uint8_t n)
 {
-    double scale = sqrt(NUM_STATES + ukf->lambda);
+    double sum;
+    double d;
+    memset(L, 0, sizeof(double) * n * n);
 
-    sigma[0][0] = ukf->x[0];
-    sigma[0][1] = ukf->x[1];
-    sigma[0][2] = ukf->x[2];
-    sigma[0][3] = ukf->x[3];
+    for (uint8_t i = 0; i < n; i++) {
+        for (uint8_t j = 0; j <= i; j++) {
 
-    for (uint8_t i = 0; i < NUM_STATES; i++) {
-
-        double s = sqrt(ukf->P[i * NUM_STATES + i]) * scale;
-
-        for (uint8_t j = 0; j < NUM_STATES; j++) {
-            sigma[i + 1][j] = ukf->x[j];
-            sigma[i + 1 + NUM_STATES][j] = ukf->x[j];
+            sum = 0.0;
+            for (uint8_t k = 0; k < j; j++) {
+                sum += L[i * n + k] * L[j * n + k];
+            }
+            if (i == j) {
+                d = A[i * n + i] - sum;
+                if (d <= 0.0) {
+                    return (-EINVAL);
+                }
+                L[i * n + j] = sqrt(d);
+            } else {
+                L[i * n + j] = (A[i * n + j] - sum) / L[j * n + j];
+            }
         }
-
-        sigma[i + 1][i] += s;
-        sigma[i + 1 + NUM_STATES][i] -= s;
     }
+    
+    return (0);
 }
 
-void ukf_predict(ukf_t *ukf, double dt)
+static int generate_sigma_points(ukf_t *ukf, double sigma[SIGMA_POINTS][NUM_STATES])
 {
-    double sigma[SIGMA_POINTS][NUM_STATES];
+    double A[NUM_STATES * NUM_STATES];
+    double L[NUM_STATES * NUM_STATES];
+    double v;
+    const double scale = NUM_STATES + ukf->lambda;
 
-    generate_sigma_points(ukf, sigma);
-
-    /* propagate sigma points */
-    for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
-        sigma[i][0] += sigma[i][1] * dt;
-        /* sigma[i][1] = biasA -> for now assuming near constant bias
-        sigma[i][2] = biasB */
+    /* A = (n + lambda) * P */
+    for (uint8_t i = 0; i < NUM_STATES * NUM_STATES; i++) {
+        A[i] = ukf->P[i] * scale;
     }
 
-    /* mean */
-    for (uint8_t j = 0; j < NUM_STATES; j++) {
+    /* Cholesky decomposition */
+    if (cholesky_decompose(A, L, NUM_STATES) < 0) {
+        return (-EINVAL);
+    }
 
-        ukf->x[j] = 0.0;
+    /* central sigma points */
+    for (uint8_t i = 0; i < NUM_STATES; i++) {
+        sigma[0][i] = ukf->x[i];
+    }
 
-        for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
+    /* remaining sigma points */
+    for (uint8_t i = 0; i < NUM_STATES; i++) {
+        for (uint8_t j = 0; j < NUM_STATES; j++) {
+            v = L[j * NUM_STATES + i];
+            sigma[i + 1][j] = ukf->x[j] + v;
+            sigma[i + 1 + NUM_STATES][j] = ukf->x[j] - v;
+        }
+    }
+
+    return (0);
+}
+
+/* assuming omega random -- which is want we want */
+int ukf_predict(ukf_t *ukf)
+{
+    printk("we in predict\n");
+    double sigma[SIGMA_POINTS][NUM_STATES];
+    double dx[NUM_STATES];
+
+    if (generate_sigma_points(ukf, sigma) < 0) {
+        return (-EINVAL);
+    }
+
+    /* process model: omega(k + 1) = omega(k) -- small steps
+    biases constant */
+
+    /* predicted mean */
+    memset(ukf->x, 0, sizeof(double) * NUM_STATES);
+    for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
+        for (uint8_t j = 0; j < NUM_STATES; j++) {
             ukf->x[j] += ukf->wm[i] * sigma[i][j];
         }
     }
 
-    /* covariance */
+    printk("we half way through predict\n");
+
+    /* predicted covariance */
     memset(ukf->P, 0, sizeof(double) * NUM_STATES * NUM_STATES);
     for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
-
-        double dx[NUM_STATES];
-
         for (uint8_t j = 0; j < NUM_STATES; j++) {
             dx[j] = sigma[i][j] - ukf->x[j];
         }
-
         for (uint8_t k = 0; k < NUM_STATES; k++) {
             for (uint8_t p = 0; p < NUM_STATES; p++) {
                 ukf->P[k * NUM_STATES + p] += ukf->wc[i] * dx[k] * dx[p];
@@ -126,91 +167,126 @@ void ukf_predict(ukf_t *ukf, double dt)
         }
     }
 
-    /* process noise */
+    /* add process noise */
     for (uint8_t i = 0; i < NUM_STATES * NUM_STATES; i++) {
         ukf->P[i] += ukf->Q[i];
     }
+
+    printk("we predicted\n");
+
+    return (0);
 }
 
 int ukf_update(ukf_t *ukf, double aA, double aB)
 {
     double sigma[SIGMA_POINTS][NUM_STATES];
-    generate_sigma_points(ukf, sigma);
-    double a_sigma[SIGMA_POINTS][NUM_MEAS];
-
-    for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
-        wheel_measurement(sigma[i], a_sigma[i]);
+    double z_sigma[SIGMA_POINTS][NUM_MEAS];
+    double z_pred[NUM_MEAS];
+    double S[NUM_MEAS][NUM_MEAS];
+    double S_inv[NUM_MEAS][NUM_MEAS];
+    double dz[NUM_MEAS];
+    double dx[NUM_STATES];
+    double Tc[NUM_STATES][NUM_MEAS];
+    double K[NUM_STATES][NUM_MEAS];
+    double residual[NUM_MEAS];
+    double KS[NUM_STATES][NUM_MEAS];
+    double KSKT[NUM_STATES][NUM_STATES];
+    double omega;
+    double biasA;
+    double biasB;
+    double ac;
+    
+    if (generate_sigma_points(ukf, sigma) < 0) {
+        return (-EINVAL);
     }
 
-    /* predicte measurement mean */
-    double a_pred[2] = {0};
-
+    /* transform sigma points into measurement space */
     for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
-        a_pred[0] += ukf->wm[i] * a_sigma[i][0];
-        a_pred[1] += ukf->wm[i] * a_sigma[i][1];
+        omega = sigma[i][0];
+        biasA = sigma[i][1];
+        biasB = sigma[i][2];
+        ac = RADIUS * omega * omega;
+        z_sigma[i][0] = ac + biasA;
+        z_sigma[i][1] = ac + biasB;
     }
 
-    /* covariance */
-    double S[2][2] = {0};
-
+    /* predicted measurement mean */
+    memset(z_pred, 0, sizeof(double) * NUM_MEAS);
     for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
+        for (uint8_t j = 0; j < NUM_MEAS; j++) {
+            z_pred[j] += ukf->wm[i] * z_sigma[i][j];
+        }
+    }
 
-        double dz0 = a_sigma[i][0] - a_pred[0];
-        double dz1 = a_sigma[i][1] - a_pred[1];
-
-        S[0][0] += ukf->wc[i] * dz0 * dz0;
-        S[0][1] += ukf->wc[i] * dz0 * dz1;
-        S[1][0] += ukf->wc[i] * dz1 * dz0;
-        S[1][1] += ukf->wc[i] * dz1 * dz1;
+    /* innovation covariance */
+    memset(S, 0, sizeof(double) * NUM_MEAS * NUM_MEAS);
+    for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
+        dz[0] = z_sigma[i][0] - z_pred[0];
+        dz[1] = z_sigma[i][1] - z_pred[1];
+        for (uint8_t j = 0; j < NUM_MEAS; j++) {
+            for (uint8_t k = 0; k < NUM_MEAS; k++) {
+                S[j][k] += ukf->wc[i] * dz[j] * dz[k];
+            }
+        }
     }
 
     S[0][0] += ukf->R[0];
     S[1][1] += ukf->R[3];
 
-    double S_inv[2][2];
-    int err = matrix2x2_inv(S, S_inv);
-    if (err < 0) {
-        return (err);
+    /* invert S */
+    if (matrix2x2_inv(S, S_inv) < 0) {
+        return (-EINVAL);
     }
 
     /* cross covariance */
-    double Tc[NUM_STATES][2] = {0};
-
+    memset(Tc, 0, sizeof(double) * NUM_STATES * NUM_MEAS);
     for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
-
-        double dx[NUM_STATES];
-        double da[2];
-
-        for (int j = 0; j < NUM_STATES; j++) {
+        for (uint8_t j = 0; j < NUM_STATES; j++) {
             dx[j] = sigma[i][j] - ukf->x[j];
         }
-
-        da[0] = a_sigma[i][0] - a_pred[0];
-        da[1] = a_sigma[i][1] - a_pred[1];
-
-        for (uint8_t j = 0; j < NUM_STATES; j++) {
-            Tc[j][0] += ukf->wc[i] * dx[j] * da[0];
-            Tc[j][1] += ukf->wc[i] * dx[j] * da[1];
+        dz[0] = z_sigma[i][0] - z_pred[0];
+        dz[1] = z_sigma[i][1] - z_pred[1];
+        for (uint8_t k = 0; k < NUM_STATES; k++) {
+            for (uint8_t p = 0; p < NUM_MEAS; p++) {
+                Tc[k][p] += ukf->wc[i] * dx[k] * dz[p];
+            }
         }
     }
 
     /* kalman gain */
-    double K[NUM_STATES][2];
-
     for (uint8_t i = 0; i < NUM_STATES; i++) {
-        K[i][0] = Tc[i][0] * S_inv[0][0] + Tc[i][1] * S_inv[1][0];
-        K[i][1] = Tc[i][0] * S_inv[0][1] + Tc[i][1] * S_inv[1][1];
+        for (uint8_t j = 0; j < NUM_MEAS; j++) {
+            K[i][j] = Tc[i][0] * S_inv[0][j] + Tc[i][1] * S_inv[1][j];
+        }
     }
 
-    /* residual */
-    double residual[2];
-
-    residual[0] = aA - a_pred[0];
-    residual[1] = aB - a_pred[1];
+    /* residuals */
+    residual[0] = aA - z_pred[0];
+    residual[1] = aB - z_pred[1];
 
     /* state update */
     for (uint8_t i = 0; i < NUM_STATES; i++) {
         ukf->x[i] += K[i][0] * residual[0] + K[i][1] * residual[1];
+    }
+
+    /* covariance update
+    P = P - KSK^T */
+    memset(KS, 0, sizeof(double) * NUM_STATES * NUM_MEAS);
+    for (uint8_t i = 0; i < NUM_STATES; i++) {
+        for (uint8_t j = 0; j < NUM_MEAS; j++) {
+            KS[i][j] = K[i][0] * S[0][j] + K[i][1] * S[1][j];
+        }
+    }
+    memset(KSKT, 0, sizeof(double) * NUM_STATES * NUM_STATES);
+    for (uint8_t i = 0; i < NUM_STATES; i++) {
+        for (uint8_t j = 0; j < NUM_STATES; j++) {
+            KSKT[i][j] = KS[i][0] * K[j][0] + KS[i][1] * K[j][1];
+        }
+    }
+    for (uint8_t i = 0; i < NUM_STATES; i++) {
+        for (uint8_t j = 0; j < NUM_STATES; j++) {
+            ukf->P[i * NUM_STATES + j] -= KSKT[i][j];
+        }
     }
 
     return (0);
@@ -223,50 +299,71 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     ARG_UNUSED(dummy3);
 
     ukf_t ukf;
-    struct ble_packet control;
-    double accelA = 0; /* ignore warnings */
-    double accelB = 0; /* ignore warnings */
+    double accelA; 
+    double accelB;
+    double gyroA;
+    double gyroB;
     double ac; 
-    int64_t last_time = 0;
-    double dt;
     double omega;
     double centripetal;
     int err;
+    uint8_t initialised = 0;
 
     ukf_init(&ukf);
 
+    printk("initialise\n");
+
     while (1) {
-        while (k_msgq_get(&sensor_msg_queue, &control, K_FOREVER) == 0) {
-            if (k_msgq_num_free_get(&sensor_msg_queue) == 4) {
-                break;
-            }
-            if (control.node_num == 0) {
-                accelA = control.data.sensor.imu_data.accel_ms2;
-            } else if (control.node_num == 1) {
-                accelB = control.data.sensor.imu_data.accel_ms2;
-            }
-        }
 
-        ac = 0.5 * (accelA + accelB);
-        printk("average: %f\n", ac);
+        printk("I'm alive\n");
 
-        if (last_time == 0) {
-            dt = 0.001;
-        } else {
-            dt = k_uptime_get() - last_time;
-        }
-        last_time = k_uptime_get();
+        k_sem_take(&sensor_semaphore, K_FOREVER);
+        rb_lock();
+        struct helm_node *helm_a = get_rb_node(0);
+        struct helm_node *helm_b = get_rb_node(1);
+
+        accelA = helm_a->imu_data.accel_ms2;
+        accelB = helm_b->imu_data.accel_ms2;
+        gyroA = helm_a->imu_data.gyro_rads;
+        gyroB = helm_b->imu_data.gyro_rads;
+
+        rb_unlock();
+
+        printk("accelA: %f\n", accelA);
+        printk("accelB: %f\n", accelB);
+        printk("gyroA: %f\n", gyroA);
+        printk("gyroB: %f\n", gyroB);
+
+
+        if (!initialised) {
+            ac = 0.5 * (accelA + accelB);
+            if (ac > 0.0) {
+                ukf.x[0] = sqrt(ac/RADIUS);
+                initialised = true;
+            }
+            continue;
+        } 
+
        
-        ukf_predict(&ukf, dt);
+        err = ukf_predict(&ukf);
+        if (err < 0) {
+            printk("error on predict\n");
+            continue;
+        }
+        printk("predicted\n");
         err = ukf_update(&ukf, accelA, accelB);
         if (err < 0) {
             printk("error on update\n");
-            break;
+            continue;
         }
+        printk("updated\n");
 
         omega = ukf.x[0];
         centripetal = omega * omega * RADIUS;
         printk("centripetal acceleration: %f\n", centripetal);
+        printk("gyroscope: %f\n", 0.5 * (gyroA + gyroB));
+
+        /* give Jack struct with speed and direction */
     }
 }
 

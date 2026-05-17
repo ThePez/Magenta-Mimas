@@ -27,22 +27,17 @@ int main(void)
     }
 
     char *data = "Base says hi";
-    struct ble_packet control;
-    int64_t prev = 0;
+    // struct ble_packet control;
     while (1) {
-        int64_t current = k_uptime_get();
-        if (current - prev > 1000) {
-            send_sync_pulse_to_helms(data, strlen(data));
-            prev = current;
-        }
+        send_sync_pulse_to_helms(data, strlen(data));
 
-        if (k_msgq_get(&sensor_msg_queue, &control, K_NO_WAIT) == 0) {
+        /*if (k_msgq_get(&sensor_msg_queue, &control, K_NO_WAIT) == 0) {
             printk("Node ID: Helm-%c\n", control.node_num ? 'B' : 'A');
             printk("acceleration: %f\n", control.data.sensor.imu_data.accel_ms2);
             printk("gyroscope: %f\n", control.data.sensor.imu_data.gyro_rads);
-        }
+        }*/
 
-        k_msleep(10);
+        k_msleep(1000);
     }
 
     return (0);
