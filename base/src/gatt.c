@@ -100,8 +100,7 @@ static struct conn_state connections[NUM_CONNECTIONS] = {
     [1] = {.intentional_disconnect = ATOMIC_INIT(0)},
 };
 
-K_MSGQ_DEFINE(battery_msg_queue, sizeof(struct ble_packet), 4, 4);
-K_MSGQ_DEFINE(sensor_msg_queue, sizeof(struct ble_packet), 4, 4);
+K_MSGQ_DEFINE(gatt_msg_queue, sizeof(struct ble_packet), 8, 4);
 
 /* ========================================================================== */
 /* Helpers                                                                    */
@@ -158,19 +157,13 @@ static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params
 
     struct ble_packet *ble_packet = (struct ble_packet *)data;
 
+    // Check the packet is valid
     if (ble_packet->crc16 != crc16_ansi((char *)&(ble_packet->data), sizeof(union ble_data))) {
         return (BT_GATT_ITER_CONTINUE);
     }
 
-    switch (ble_packet->packet_id) {
-    case SENSOR:
-        k_msgq_put(&sensor_msg_queue, ble_packet, K_NO_WAIT);
-        break;
-    case BATTERY:
-        k_msgq_put(&battery_msg_queue, ble_packet, K_NO_WAIT);
-        break;
-    }
-
+    // Pass on the valid packet
+    k_msgq_put(&gatt_msg_queue, ble_packet, K_NO_WAIT);
     return (BT_GATT_ITER_CONTINUE); /* keep receiving notifications */
 }
 
