@@ -514,7 +514,7 @@ MonoBehaviour:
     m_RotationOrder: 4
   repetitionSize: 293
   largeOrientationValue: 0
-  largeWindSpeed: 15.7
+  largeWindSpeed: 11.2
   largeChaos: 0.808
   largeBand0Multiplier: 0.969
   largeBand0FadeMode: 1
@@ -961,7 +961,7 @@ MonoBehaviour:
   zoomSpeed: 1
   targetFOV: 6
   normalFOV: 60
-  rotationSpeed: 5
+  rotationSpeed: 8
   centerThresholdEnter: 10
 --- !u!1 &2013410473
 GameObject:
