@@ -13,7 +13,6 @@ int initialise_base_gatt(void);
 int send_sync_pulse_to_helms(uint8_t *data, uint16_t len);
 
 /* Message Queue containing recieved data */
-extern struct k_msgq sensor_msg_queue;
-extern struct k_msgq battery_msg_queue;
+extern struct k_msgq gatt_msg_queue;
 
 #endif

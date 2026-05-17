@@ -6,12 +6,14 @@
 
 #include "rb_tree.h"
 
+#include "gatt.h"
+
+#include <stdio.h>
 #include <string.h>
 #include <sys/errno.h>
 
 #include <zephyr/kernel.h>
 #include "zephyr/sys/printk.h"
-#include <zephyr/sys/util.h>
 
 static bool helm_lessthan_func(struct rbnode *a, struct rbnode *b);
 
@@ -23,7 +25,11 @@ static struct rbtree tree = {.lessthan_fn = helm_lessthan_func};
 static uint8_t initialised = 0;
 static int size = 0;
 
+// Tree Mutex
 K_MUTEX_DEFINE(rbLock);
+
+// Sensor Semaphore
+K_SEM_DEFINE(sensor_semaphore, 0, 1);
 
 struct helm_node helm_list[NUM_HELMS] = {
     [0] = {.id = 0},
@@ -77,7 +83,7 @@ static bool helm_lessthan_func(struct rbnode *a, struct rbnode *b)
  * @brief Insert pre-allocated nodes for both helms and mark the tree ready.
  *        Safe to call multiple times — subsequent calls are no-ops.
  */
-void init_rb_tree(void)
+static void init_rb_tree(void)
 {
     if (initialised) {
         return;
@@ -243,11 +249,62 @@ void print_rb_node(void)
 
     struct helm_node *node;
     RB_FOR_EACH_CONTAINER(&tree, node, rbnode) {
-        printk("[INFO] helm: id=%u | ctrl: ts=%lld he=%lld x=%d y=%d z=%d"
+        printk("[INFO] helm: id=%u | sensor: ts=%lld acc: %lf gyro: %lf"
                " | status: ts=%lld mv=%u\n",
-               node->id, node->ctrl_timestamp, node->halleffect_time, node->x, node->y, node->z,
-               node->status_timestamp, node->mv);
+               node->id, node->sesnor_ts, node->imu_data.accel_ms2, node->imu_data.gyro_rads,
+               node->battery_ts, node->battery_data.bat_charge_pc);
     }
 
     rb_unlock();
 }
+
+/* ========================================================================== */
+/* Red Black Tree Thread                                                      */
+/* ========================================================================== */
+
+void thread_tree(void *arg1, void *arg2, void *arg3)
+{
+    ARG_UNUSED(arg1);
+    ARG_UNUSED(arg2);
+    ARG_UNUSED(arg3);
+
+    init_rb_tree();
+
+    struct helm_node *node;
+    struct ble_packet packet;
+
+    while (1) {
+        uint8_t received_mask = 0;
+        // Drain all packets from the queue until a sensor packet from both nodes has been received
+        while (received_mask != 0x03) {
+            if (k_msgq_get(&gatt_msg_queue, &packet, K_FOREVER) == 0) {
+                node = get_rb_node(packet.node_num);
+                if (node != NULL) {
+                    int64_t current = k_uptime_get();
+                    switch (packet.packet_id) {
+                    case SENSOR: {
+                        struct sensor_packet data = packet.data.sensor;
+                        node->imu_data.accel_ms2 = data.imu_data.accel_ms2;
+                        node->imu_data.gyro_rads = data.imu_data.gyro_rads;
+                        node->magnet_dt = data.magnet_dt;
+                        node->sesnor_ts = current;
+                        received_mask |= BIT(packet.node_num);
+                        break;
+                    }
+                    case BATTERY: {
+                        struct bat_packet data = packet.data.bat;
+                        node->battery_data.bat_charge_pc = data.bat_charge_pc;
+                        node->battery_ts = current;
+                        break;
+                    }
+                    }
+                }
+            }
+        }
+
+        // Once a sensor packet from both nodes has been received -> give semaphore
+        k_sem_give(&sensor_semaphore);
+    }
+}
+
+K_THREAD_DEFINE(rb_tree_thread, 2048, thread_tree, NULL, NULL, NULL, 6, 0, 0);
