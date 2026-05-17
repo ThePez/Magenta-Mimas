@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - Water
   layers:
   - Default
   - TransparentFX
@@ -58,3 +59,4 @@ TagManager:
   - Decal Layer 5
   - Decal Layer 6
   - Decal Layer 7
+  m_MigratedRenderPipelines: []

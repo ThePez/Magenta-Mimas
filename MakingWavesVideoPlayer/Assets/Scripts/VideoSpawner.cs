@@ -1,18 +1,18 @@
 using UnityEngine;
 using UnityEngine.Video;
 using System.IO;
+using Unity.VisualScripting;
+using UnityEngine.Experimental.Rendering;
 
 public class VideoSpawner : MonoBehaviour
 {
-    [Header("Prefabs & Camera")] 
-    public GameObject spherePrefab;
-
+    [Header("Prefabs & Camera")] public GameObject spherePrefab;
     public GameObject screenPrefab;
-
     public Camera mainCamera;
 
     [Header("Layout")] public float padding = 1f; // space between spheres
     public float planeHeight = 2f; // height of the quad above each sphere
+
     void Start()
     {
         if (!mainCamera)
@@ -40,18 +40,53 @@ public class VideoSpawner : MonoBehaviour
         {
             float angle = Mathf.PI * (2f * i + 1) / n;
             Vector3 spherePos = new(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
-            
-            Instantiate(spherePrefab, transform.position + spherePos, Quaternion.identity, transform);
-            GameObject screen = Instantiate(screenPrefab, 
-                transform.position + spherePos + Vector3.up * planeHeight, Quaternion.identity, transform);
-            
-            screen.transform.LookAt(mainCamera?.transform);
-            screen.transform.Rotate(0f, 180f, 0f);
 
-            // VideoPlayer
-            VideoPlayer videoPlayer = screen.GetComponent<VideoPlayer>();
-            videoPlayer.url = Path.Combine(Application.streamingAssetsPath, Path.GetFileName(mp4Files[i]));
-            videoPlayer.Prepare();
+            GameObject sphere = Instantiate(spherePrefab, transform);
+            sphere.transform.localPosition = spherePos;
+
+            GameObject screen = Instantiate(screenPrefab, sphere.transform);
+            screen.transform.localPosition = Vector3.up * planeHeight;
+            screen.transform.LookAt(mainCamera?.transform);
+
+            AddVideoPlayerToScreen(screen, mp4Files[i]);
         }
+    }
+
+    private void AddVideoPlayerToScreen(GameObject screen, string filename)
+    {
+        RenderTexture texture = new RenderTexture(1920, 1080, 0)
+        {
+            antiAliasing = 1,
+            graphicsFormat = GraphicsFormat.R8G8B8A8_UNorm,
+            depthStencilFormat = GraphicsFormat.None,
+            useMipMap = false,
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Point,
+            anisoLevel = 0
+        };
+
+        screen.GetComponent<Renderer>().material = new Material(Shader.Find("HDRP/Unlit"))
+        {
+            mainTexture = texture
+        };
+
+        texture.Create();
+
+        VideoPlayer videoPlayer = screen.AddComponent<VideoPlayer>();
+        videoPlayer.playOnAwake = false;
+        videoPlayer.waitForFirstFrame = true;
+        videoPlayer.isLooping = true;
+        videoPlayer.skipOnDrop = false;
+
+        videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+        videoPlayer.targetTexture = texture;
+
+        videoPlayer.source = VideoSource.Url;
+        videoPlayer.url = Path.Combine(Application.streamingAssetsPath, Path.GetFileName(filename));
+
+        videoPlayer.audioOutputMode = VideoAudioOutputMode.Direct;
+        videoPlayer.timeUpdateMode = VideoTimeUpdateMode.DSPTime;
+
+        videoPlayer.Prepare();
     }
 }
