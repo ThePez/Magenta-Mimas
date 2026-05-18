@@ -12,7 +12,6 @@
 #include <zephyr/device.h>
 #include "zephyr/sys/printk.h"
 #include <zephyr/usb/usbd.h>
-#include "zephyr/usb/class/hid.h"
 #include <zephyr/usb/class/usbd_hid.h>
 
 /* ========================================================================== */
@@ -147,7 +146,7 @@ static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const 
 /* ========================================================================== */
 
 /* Map the inputs of speed and direction to 8 different output keys */
-enum hid_kbd_code translate_into_button(double speed, uint8_t direction)
+enum hid_kbd_code translate_into_button(double speed, int8_t direction)
 {
     // Map Speed into 4 options
     uint8_t code = 1;
@@ -162,7 +161,7 @@ enum hid_kbd_code translate_into_button(double speed, uint8_t direction)
     }
 
     // Map direction into the 2 groups of 4 speeds
-    code <<= (direction == 1) ? 4 : 0;
+    code <<= (direction == -1) ? 4 : 0;
 
     // Output the desired key
     switch (code) {

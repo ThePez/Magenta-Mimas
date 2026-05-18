@@ -8,7 +8,7 @@
 #define UART_H
 
 // Use this define to make the UART use the USB-C UART
-// #define UART_USB_C 1
+#define UART_USB_C 1
 
 #ifdef UART_USB_C
 #include <stdio.h>

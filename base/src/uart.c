@@ -8,25 +8,27 @@
 
 #ifdef UART_USB_C // Disables the file if not found
 
+#include "ukf.h"
+#include "rb_tree.h"
+#include "usb_hid.h"
+
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-#include "zephyr/bluetooth/addr.h"
-#include "zephyr/toolchain.h"
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/sys/ring_buffer.h>
 
-#include <stddef.h>
 #include <sys/errno.h>
-#include <stdio.h>
 #include <string.h>
 
 /* ========================================================================== */
 /* Configuration                                                              */
 /* ========================================================================== */
 
-#define UART_JSON_BUF_SIZE 256
-#define TX_BUF_SIZE        2048 // Enough to hold view -a
+#define BUFFER_SIZE   256
+#define JSON_BUF_SIZE BUFFER_SIZE
+#define TX_BUF_SIZE   BUFFER_SIZE
+#define RX_BUF_SIZE   BUFFER_SIZE
 
 /* ========================================================================== */
 /* Static Data                                                                */
@@ -36,7 +38,7 @@
 static bool initialised = false;
 
 // Buffer for each line input
-static char rx_buf[UART_JSON_BUF_SIZE];
+static char rx_buf[RX_BUF_SIZE];
 static int rx_buf_pos;
 
 // RX: message queue for complete lines
@@ -188,8 +190,29 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
 
     uart_interrupt_driver_init(NULL);
 
+    struct kalman data = {0};
+    // RB_tree node for magnet data fetching
+    struct helm_node *nodeA;
+    struct helm_node *nodeB;
+
     while (1) {
-        k_msleep(25);
+        // Grab data from kalman
+        k_msgq_get(&kalman_msgq, &data, K_FOREVER);
+        // Translate into keyboard press
+        enum hid_kbd_code key = translate_into_button(data.magntidue, data.direction);
+        // Pass to HID controller
+        k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
+
+        // Build JSON packet for PC script
+
+        rb_lock();
+        nodeA = get_rb_node(0);
+        nodeB = get_rb_node(1);
+        // What data do we want to send?
+
+        rb_unlock();
+
+        // .... send
     }
 }
 
