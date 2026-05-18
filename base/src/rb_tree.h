@@ -20,6 +20,7 @@ struct helm_node {
     uint64_t magnet_dt;
     int64_t battery_ts;
     struct bat_packet battery_data;
+    uint8_t connection_status;
     uint8_t id;      /* sort key — 0 = Helm-A, 1 = Helm-B for the two static nodes */
     uint8_t dynamic; /* 1 if heap-allocated, 0 if from helm_list[] */
     struct rbnode rbnode;
@@ -35,5 +36,6 @@ int insert_rb_node(uint16_t id);
 void print_rb_node(void);
 
 extern struct k_sem sensor_semaphore;
+extern struct k_sem rb_semaphore;
 
 #endif

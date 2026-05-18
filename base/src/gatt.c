@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "common.h"
 #include "gatt.h"
+
+#include "mac.h"
+#include "common.h"
+#include "rb_tree.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -32,37 +35,17 @@ static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *at
                              struct bt_gatt_discover_params *params);
 
 /* ========================================================================== */
-/* Configuration                                                              */
-/* ========================================================================== */
-
-#define NUM_CONNECTIONS 2
-
-static const bt_addr_le_t base_addr = {
-    .type = BT_ADDR_LE_RANDOM, .a.val = {0xBB, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
-    // FF:EE:DD:CC:BB:BB  <-- replace with Base address
-};
-
-/* Helm chip addresses - hardcoded for filtering */
-static const bt_addr_le_t helm_addr[NUM_CONNECTIONS] = {
-    [0] =
-        {
-            .type = BT_ADDR_LE_RANDOM, .a.val = {0x56, 0x63, 0xCD, 0x44, 0x4A, 0xE1}
-            // E1:4A:44:CD:63:56 <-- replace with Helm_A address
-        },
-    [1] =
-        {
-            .type = BT_ADDR_LE_RANDOM, .a.val = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
-            // FF:EE:DD:CC:BB:AA  <-- replace with Helm_B address
-        },
-};
-
-/* ========================================================================== */
 /* Per-Connection State                                                       */
 /* ========================================================================== */
 
 struct conn_state {
     /* Holds the active connection once we connect to the mobile */
     struct bt_conn *conn;
+
+    /* Handle of the peripheral's NUS RX characteristic value.
+     * Discovered during GATT discovery and used as the write target
+     * in send_to_peripheral(). Zero until discovery completes. */
+    uint16_t nus_rx_handle;
 
     /* Reused UUID buffer - gets overwritten at each stage of
      * discovery to tell bt_gatt_discover() what to look for next.
@@ -81,11 +64,6 @@ struct conn_state {
      * peripheral's NUS RX characteristic - must stay valid until
      * the write callback fires */
     struct bt_gatt_write_params write_params;
-
-    /* Handle of the peripheral's NUS RX characteristic value.
-     * Discovered during GATT discovery and used as the write target
-     * in send_to_peripheral(). Zero until discovery completes. */
-    uint16_t nus_rx_handle;
 
     /* Atomic flag for closing ble connection intentionally */
     atomic_t intentional_disconnect;
@@ -327,7 +305,7 @@ void set_discover_nus_sub(struct conn_state *cs, const struct bt_gatt_attr *attr
         printk("[INFO] NUS Subscribed\n");
     }
 
-    /* Now discover RX so we can write to the peripheral */
+    /* Now discover RX so we can write to the peripheral -> Step 7 */
     set_discover_nus_rx(cs, attr);
 }
 
@@ -519,6 +497,14 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
 
     printk("[INFO] Connected: %s\n", addr);
 
+    rb_lock();
+    struct helm_node *node = get_rb_node(slot);
+    if (node) {
+        node->connection_status = 0;
+    }
+
+    rb_unlock();
+
     // Request data length extension (over-the-air packet size)
     update_data_length(conn);
 
@@ -555,6 +541,14 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
     bt_conn_unref(connections[slot].conn);
     connections[slot].conn = NULL;
+
+    rb_lock();
+    struct helm_node *node = get_rb_node(slot);
+    if (node) {
+        node->connection_status = 0;
+    }
+
+    rb_unlock();
 
     if (atomic_get(&connections[slot].intentional_disconnect)) {
         atomic_clear(&connections[slot].intentional_disconnect);
