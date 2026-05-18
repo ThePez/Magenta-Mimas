@@ -20,18 +20,6 @@
 #include "zephyr/sys/printk.h"
 #include "zephyr/toolchain.h"
 
-void wheel_measurement(double *state, double *a_out)
-{
-    double omega = state[0];
-    double biasA = state[2];
-    double biasB = state[3];
-
-    double ac = RADIUS * omega * omega;
-
-    a_out[0] = ac + biasA;
-    a_out[1] = ac + biasB;
-}
-
 void ukf_init(ukf_t *ukf)
 {
     memset(ukf, 0, sizeof(ukf_t));
@@ -322,9 +310,14 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         rb_unlock();
 
+        printk("accelA: %f\n", accelA);
+        printk("accelB: %f\n", accelB);
+        printk("gyroA: %f\n", gyroA);
+        printk("gyroB: %f\n", gyroB);
+
         if (!initialised) {
             ac = 0.5 * (accelA + accelB);
-            if (ac != 0.0) {
+            if (ac > 0.0) {
                 ukf.x[0] = sqrt(ac/RADIUS);
                 initialised = true;
             }
