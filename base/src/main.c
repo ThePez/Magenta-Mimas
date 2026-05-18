@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "gatt.h"
+#include "rb_tree.h"
+
 #include <zephyr/kernel.h>
 #include "zephyr/sys/reboot.h"
 #include <zephyr/sys/printk.h>
 
-#include "gatt.h"
-#include "common.h"
 #include <stdint.h>
 
 /* ========================================================================== */
@@ -20,6 +21,11 @@
 int main(void)
 {
     printk("[INFO] CSSE4011 Project Base Chip\r\n");
+
+    // Wait for the rb_tree to initialise
+    if (k_sem_take(&rb_semaphore, K_SECONDS(5)) < 0) {
+        goto reboot;
+    }
 
     int err = initialise_base_gatt();
     if (err < 0) {
