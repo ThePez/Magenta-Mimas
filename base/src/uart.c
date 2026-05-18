@@ -8,6 +8,7 @@
 
 #ifdef UART_USB_C // Disables the file if not found
 
+#include "json.h"
 #include "ukf.h"
 #include "rb_tree.h"
 #include "usb_hid.h"
@@ -36,6 +37,8 @@
 
 // Flag for the UART interrupt driver
 static bool initialised = false;
+
+static char json_buf[JSON_BUF_SIZE];
 
 // Buffer for each line input
 static char rx_buf[RX_BUF_SIZE];
@@ -194,6 +197,7 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
     // RB_tree node for magnet data fetching
     struct helm_node *nodeA;
     struct helm_node *nodeB;
+    struct json_packet packet = {0};
 
     while (1) {
         // Grab data from kalman
@@ -205,14 +209,28 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
 
         // Build JSON packet for PC script
 
+        // Grab tree stuff
         rb_lock();
         nodeA = get_rb_node(0);
+        packet.nodeA.mv = nodeA->battery_data.bat_charge_pc;
+        packet.nodeA.connection_status = nodeA->connection_status;
+        packet.nodeA.magnet_dt = nodeA->magnet_dt;
         nodeB = get_rb_node(1);
-        // What data do we want to send?
-
+        packet.nodeB.mv = nodeB->battery_data.bat_charge_pc;
+        packet.nodeB.connection_status = nodeB->connection_status;
+        packet.nodeB.magnet_dt = nodeB->magnet_dt;
         rb_unlock();
 
-        // .... send
+        // Fill in remaining items
+        packet.direction = data.direction;
+        packet.speed = data.magntidue;
+
+        // Clear old data and encode buffer
+        memset(json_buf, 0, sizeof(json_buf));
+        encode_json_packet(&packet, json_buf, sizeof(json_buf));
+        // Send it
+        print_uart(json_buf);
+        print_uart("\n");
     }
 }
 
