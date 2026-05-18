@@ -20,6 +20,8 @@
 #include "zephyr/sys/printk.h"
 #include "zephyr/toolchain.h"
 
+K_MSGQ_DEFINE(kalman_msg_queue, sizeof(struct kalman), 5, 4);
+
 void ukf_init(ukf_t *ukf)
 {
     memset(ukf, 0, sizeof(ukf_t));
@@ -342,7 +344,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         printk("centripetal acceleration: %f\n", centripetal);
         printk("gyroscope: %f\n", avg_gyro);
 
-        /* give Jack struct with speed and direction */
         /* clockwise is negative, anti-clockwise is positive */
         results.magntidue = centripetal;
         if (avg_gyro < 0) {
@@ -350,6 +351,8 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         } else {
             results.direction = 1;
         }
+
+        k_msgq_put(&kalman_msg_queue, &results, K_NO_WAIT);
 
     }
 }

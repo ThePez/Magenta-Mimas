@@ -35,6 +35,8 @@ struct kalman {
     signed char direction;
 };
 
+extern struct k_msgq kalman_msgq; 
+
 void ukf_init(ukf_t *ukf);
 int ukf_predict(ukf_t *ukf);
 int ukf_update(ukf_t *ukf, double aA, double aB);
