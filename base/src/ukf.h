@@ -30,6 +30,11 @@ typedef struct {
     double wc[SIGMA_POINTS];           /* weights for covariance -> how uncertain is this shit*/
 } ukf_t;
 
+struct kalman {
+    double magntidue;
+    signed char direction;
+};
+
 void ukf_init(ukf_t *ukf);
 int ukf_predict(ukf_t *ukf);
 int ukf_update(ukf_t *ukf, double aA, double aB);
