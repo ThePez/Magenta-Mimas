@@ -14,36 +14,37 @@ public class CameraRaycastVideoControl : MonoBehaviour
     // -------------------------------------------------
     // Private state
     // -------------------------------------------------
-    private float originalPitch; // Camera pitch at start
     private VideoPlayer lastVideoPlayer;
     private VideoPlayer[] videoPlayers;
-    
+
+    private GameObject player; 
     private PlayerRotateWithInertia playerRotation;
     private Camera mainCamera;
     private RawImage crosshair;
 
     void Start()
     {
-        mainCamera = gameObject.GetComponent<Camera>();
-        playerRotation = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerRotateWithInertia>();
-        crosshair = GameObject.FindGameObjectWithTag("Crosshair").GetComponent<RawImage>();
-        originalPitch = mainCamera.transform.eulerAngles.x;
         videoPlayers = FindObjectsByType<VideoPlayer>();
+        
+        mainCamera = gameObject.GetComponent<Camera>();
+        
+        player = GameObject.FindGameObjectWithTag("Player");
+        playerRotation = player.GetComponent<PlayerRotateWithInertia>();
+        
+        crosshair = GameObject.FindGameObjectWithTag("Crosshair").GetComponent<RawImage>();
     }
 
     void Update()
     {
-        Transform parent = transform.parent;
-        Color crosshairColor = crosshair.color;
+        Vector3 forward = player.transform.forward;
         
         foreach (VideoPlayer vp in videoPlayers)
         {
-            Vector3 rayOrigin = parent.position;
+            Vector3 rayOrigin = player.transform.position;
             rayOrigin.y = vp.transform.position.y;
-            Ray ray = new(rayOrigin, parent.forward);
+            Ray ray = new(rayOrigin, forward);
             
-            Debug.DrawRay(rayOrigin, rayOrigin + parent.forward * raycastDistance);
-
+            Debug.DrawRay(rayOrigin, forward * raycastDistance);
             if (!Physics.Raycast(ray, out RaycastHit hitInfo, raycastDistance))
             {
                 continue;
@@ -65,32 +66,26 @@ public class CameraRaycastVideoControl : MonoBehaviour
             if (playerRotation.Velocity == 0)
             {
                 ZoomCamera(targetFOV);
-
+                
                 Quaternion current = mainCamera.transform.rotation;
                 current.SetLookRotation(hitInfo.transform.position - mainCamera.transform.position);
-
-                mainCamera.transform.rotation = Quaternion.Slerp(mainCamera.transform.rotation.normalized,
-                    current.normalized, rotationSpeed * Time.deltaTime);
                 
-                crosshairColor.a = Mathf.Lerp(crosshairColor.a, 0, Time.deltaTime);
+                SetCameraRotation(current.normalized);
+                UpdateCrosshair(false);
             }
             else
             {
                 ZoomCamera(normalFOV);
-                RotateCamera(originalPitch);
-                
-                crosshairColor.a = Mathf.Lerp(crosshairColor.a, 1, Time.deltaTime);
+                SetCameraLocalRotation(Quaternion.identity);
+                UpdateCrosshair(true);
             }
 
-            crosshair.color = crosshairColor;
             return;
         }
         
         ZoomCamera(normalFOV);
-        RotateCamera(originalPitch);
-        
-        crosshairColor.a = Mathf.Lerp(crosshairColor.a, 1, Time.deltaTime);
-        crosshair.color = crosshairColor;
+        SetCameraLocalRotation(Quaternion.identity);
+        UpdateCrosshair(true);
             
         foreach (VideoPlayer vp in videoPlayers)
         {
@@ -111,11 +106,23 @@ public class CameraRaycastVideoControl : MonoBehaviour
         mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, newZoom, zoomSpeed * Time.deltaTime);
     }
 
-    private void RotateCamera(float newPitch)
+    private void SetCameraLocalRotation(Quaternion newRot)
     {
-        Quaternion targetRot = Quaternion.Euler(newPitch, mainCamera.transform.eulerAngles.y,
-            mainCamera.transform.eulerAngles.z).normalized;
-        mainCamera.transform.rotation = Quaternion.RotateTowards(mainCamera.transform.rotation.normalized, targetRot, 
-            rotationSpeed * Time.deltaTime);
+        mainCamera.transform.localRotation = Quaternion.Slerp(mainCamera.transform.localRotation.normalized, 
+            newRot, rotationSpeed * Time.deltaTime);
+    }
+    
+    private void SetCameraRotation(Quaternion newRot)
+    {
+        mainCamera.transform.rotation = Quaternion.Slerp(mainCamera.transform.rotation.normalized, 
+            newRot, rotationSpeed * Time.deltaTime);
+    }
+
+    private void UpdateCrosshair(bool visible)
+    {
+        float alpha = visible ? 1 : 0;
+        Color crosshairColor = crosshair.color;
+        crosshairColor.a = Mathf.Lerp(crosshairColor.a, alpha, Time.deltaTime);
+        crosshair.color = crosshairColor;
     }
 }
