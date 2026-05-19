@@ -72,7 +72,7 @@ public class VideoSpawner : MonoBehaviour
         texture.Create();
 
         VideoPlayer videoPlayer = screen.AddComponent<VideoPlayer>();
-        videoPlayer.playOnAwake = false;
+        videoPlayer.playOnAwake = true;
         videoPlayer.waitForFirstFrame = true;
         videoPlayer.isLooping = true;
         videoPlayer.skipOnDrop = false;
@@ -85,6 +85,13 @@ public class VideoSpawner : MonoBehaviour
 
         videoPlayer.audioOutputMode = VideoAudioOutputMode.Direct;
         videoPlayer.timeUpdateMode = VideoTimeUpdateMode.DSPTime;
+        videoPlayer.sendFrameReadyEvents = true;
+
+        videoPlayer.frameReady += (source, _) =>
+        {
+            source.Pause();
+            source.sendFrameReadyEvents = false;
+        };
 
         screen.AddComponent<ResetVideo>();
         videoPlayer.Prepare();
