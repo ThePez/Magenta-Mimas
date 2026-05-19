@@ -8,11 +8,22 @@
 #define JSON_H
 
 #include <stddef.h>
+#include <stdint.h>
 
-struct json_packet {
+struct helm_packet {
+    uint64_t magnet_dt;
+    int32_t mv;
+    uint8_t connection_status;
 };
 
-int encode_json_cmd(struct json_packet *val, char *buffer, size_t buf_size);
-int decode_json_cmd(char *input, size_t len, struct json_packet *data);
+struct json_packet {
+    struct helm_packet nodeA;
+    struct helm_packet nodeB;
+    uint64_t speed;
+    int8_t direction;
+};
+
+int encode_json_packet(struct json_packet *val, char *buffer, size_t buf_size);
+int decode_json_packet(char *input, size_t len, struct json_packet *data);
 
 #endif

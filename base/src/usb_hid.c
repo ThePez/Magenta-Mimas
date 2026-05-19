@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "usb_hid.h"
 #include "usbd_init.h"
 
 #include <stdint.h>
@@ -11,8 +12,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include "zephyr/sys/printk.h"
-#include <zephyr/usb/usbd.h>
 #include "zephyr/usb/class/hid.h"
+#include <zephyr/usb/usbd.h>
 #include <zephyr/usb/class/usbd_hid.h>
 
 /* ========================================================================== */
@@ -22,9 +23,10 @@
 #define HID_THREAD_PRIORITY 5
 
 // Speed options for keyboard output
-#define THRESHOLD_A 10
-#define THRESHOLD_B 20
-#define THRESHOLD_C 30
+#define THRESHOLD_A 5
+#define THRESHOLD_B 10
+#define THRESHOLD_C 15
+#define THRESHOLD_D 20
 
 // Keyboard output options
 #define SPEED_0_DIR_0 BIT(0) /* 1  */
@@ -147,22 +149,25 @@ static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const 
 /* ========================================================================== */
 
 /* Map the inputs of speed and direction to 8 different output keys */
-enum hid_kbd_code translate_into_button(double speed, uint8_t direction)
+enum hid_kbd_code translate_into_button(double speed, int8_t direction)
 {
+    if (speed < THRESHOLD_A) {
+        return HID_KEY_SPACE;
+    }
     // Map Speed into 4 options
     uint8_t code = 1;
-    if (speed < THRESHOLD_A) {
+    if (speed < THRESHOLD_B) {
         code <<= 0;
-    } else if (speed < THRESHOLD_B) {
-        code <<= 1;
     } else if (speed < THRESHOLD_C) {
+        code <<= 1;
+    } else if (speed < THRESHOLD_D) {
         code <<= 2;
     } else {
         code <<= 3;
     }
 
     // Map direction into the 2 groups of 4 speeds
-    code <<= (direction == 1) ? 4 : 0;
+    code <<= (direction == -1) ? 4 : 0;
 
     // Output the desired key
     switch (code) {
@@ -233,9 +238,7 @@ static void hid_thread(void *p1, void *p2, void *p3)
     }
 
     printk("[INFO] USB HID keyboard initialized\n");
-
     while (1) {
-
         k_msgq_get(&hid_key_msgq, &keycode, K_FOREVER);
 
         if (!kb_ready) {

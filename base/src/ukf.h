@@ -13,10 +13,10 @@
 
 #define RADIUS  0.4
 #define Q_OMEGA 0.01 /* higher value more unreliable system*/
-#define BIAS_A  1e-5
-#define BIAS_B  1e-5
+#define BIAS_A  1e-3
+#define BIAS_B  1e-3
 #define R_VAL   0.5 /* higher for untrustworthy sensor*/
-#define ALPHA   1e-3
+#define ALPHA   0.3
 #define BETA    2.0
 #define KAPPA   0.0
 
@@ -30,9 +30,15 @@ typedef struct {
     double wc[SIGMA_POINTS];           /* weights for covariance -> how uncertain is this shit*/
 } ukf_t;
 
+struct kalman {
+    double magntidue;
+    signed char direction;
+};
+
+extern struct k_msgq kalman_msgq; 
+
 void ukf_init(ukf_t *ukf);
 int ukf_predict(ukf_t *ukf);
 int ukf_update(ukf_t *ukf, double aA, double aB);
-void wheel_measurement(double *state, double *a_out);
 
 #endif

@@ -6,6 +6,8 @@
 
 #include "gatt.h"
 
+#include "mac.h"
+
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/services/nus.h>
 #include <zephyr/kernel.h>
@@ -44,35 +46,16 @@ static const struct bt_data sd[] = {
 };
 
 /* ========================================================================== */
-/* Base and Mobile Node addresses                                             */
+/* Static MAC                                                                 */
 /* ========================================================================== */
-
-static const bt_addr_le_t base_addr = {
-    .type = BT_ADDR_LE_RANDOM, .a.val = {0xBB, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
-    // FF:EE:DD:CC:BB:BB  <-- replace with Base address
-};
-
-/* Helm chip addresses - hardcoded for filtering */
-static const bt_addr_le_t helm_addr[2] = {
-    [0] =
-        {
-            .type = BT_ADDR_LE_RANDOM, .a.val = {0x56, 0x63, 0xCD, 0x44, 0x4A, 0xE1}
-            // E1:4A:44:CD:63:56 <-- replace with Helm_A address
-        },
-    [1] =
-        {
-            .type = BT_ADDR_LE_RANDOM, .a.val = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
-            // FF:EE:DD:CC:BB:AA  <-- replace with Helm_B address
-        },
-};
 
 static int set_static_address(void)
 {
-#ifdef CHIP_A
-    int slot = 0;
-#else
-    int slot = 1;
+#ifndef NODE_ID
+#error "NODE ID not found"
 #endif
+
+    int slot = NODE_ID;
 
     int err = bt_id_create((bt_addr_le_t *)&helm_addr[slot], NULL);
     if (err < 0) {

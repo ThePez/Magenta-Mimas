@@ -28,6 +28,9 @@ static int size = 0;
 // Tree Mutex
 K_MUTEX_DEFINE(rbLock);
 
+// Tree Initialised Semaphore
+K_SEM_DEFINE(rb_semaphore, 0, 1);
+
 // Sensor Semaphore
 K_SEM_DEFINE(sensor_semaphore, 0, 1);
 
@@ -269,6 +272,8 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
     ARG_UNUSED(arg3);
 
     init_rb_tree();
+    // Notify main() that the tree is setup
+    k_sem_give(&rb_semaphore);
 
     struct helm_node *node;
     struct ble_packet packet;

@@ -5,28 +5,32 @@
  */
 
 #include "uart.h"
+#include <stdint.h>
 
 #ifdef UART_USB_C // Disables the file if not found
 
+#include "json.h"
+#include "ukf.h"
+#include "rb_tree.h"
+#include "usb_hid.h"
+
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-#include "zephyr/bluetooth/addr.h"
-#include "zephyr/toolchain.h"
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/sys/ring_buffer.h>
 
-#include <stddef.h>
 #include <sys/errno.h>
-#include <stdio.h>
 #include <string.h>
 
 /* ========================================================================== */
 /* Configuration                                                              */
 /* ========================================================================== */
 
-#define UART_JSON_BUF_SIZE 256
-#define TX_BUF_SIZE        2048 // Enough to hold view -a
+#define BUFFER_SIZE   256
+#define JSON_BUF_SIZE BUFFER_SIZE
+#define TX_BUF_SIZE   BUFFER_SIZE
+#define RX_BUF_SIZE   BUFFER_SIZE
 
 /* ========================================================================== */
 /* Static Data                                                                */
@@ -35,8 +39,10 @@
 // Flag for the UART interrupt driver
 static bool initialised = false;
 
+static char json_buf[JSON_BUF_SIZE];
+
 // Buffer for each line input
-static char rx_buf[UART_JSON_BUF_SIZE];
+static char rx_buf[RX_BUF_SIZE];
 static int rx_buf_pos;
 
 // RX: message queue for complete lines
@@ -188,8 +194,46 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
 
     uart_interrupt_driver_init(NULL);
 
+    struct kalman data = {0};
+    // RB_tree node for magnet data fetching
+    struct helm_node *nodeA;
+    struct helm_node *nodeB;
+    struct json_packet packet = {0};
+
     while (1) {
-        k_msleep(25);
+        // Grab data from kalman
+        k_msgq_get(&kalman_msgq, &data, K_FOREVER);
+        // Translate into keyboard press
+        enum hid_kbd_code key = translate_into_button(data.magntidue, data.direction);
+        // Pass to HID controller
+        if (key != HID_KEY_SPACE) {
+            k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
+        }
+
+        // Build JSON packet for PC script
+
+        // Grab tree stuff
+        rb_lock();
+        nodeA = get_rb_node(0);
+        packet.nodeA.mv = nodeA->battery_data.bat_charge_pc;
+        packet.nodeA.connection_status = nodeA->connection_status;
+        packet.nodeA.magnet_dt = nodeA->magnet_dt;
+        nodeB = get_rb_node(1);
+        packet.nodeB.mv = nodeB->battery_data.bat_charge_pc;
+        packet.nodeB.connection_status = nodeB->connection_status;
+        packet.nodeB.magnet_dt = nodeB->magnet_dt;
+        rb_unlock();
+
+        // Fill in remaining items
+        packet.direction = data.direction;
+        packet.speed = (uint64_t)(data.magntidue * 1000); // Convert to uint64_t
+
+        // Clear old data and encode buffer
+        memset(json_buf, 0, sizeof(json_buf));
+        encode_json_packet(&packet, json_buf, sizeof(json_buf));
+        // Send it
+        print_uart(json_buf);
+        print_uart("\r\n");
     }
 }
 

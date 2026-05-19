@@ -1,8 +1,8 @@
 /*
-* Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
-*
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 /* TODO: I have bullshited all the numbers... */
 
@@ -20,17 +20,7 @@
 #include "zephyr/sys/printk.h"
 #include "zephyr/toolchain.h"
 
-void wheel_measurement(double *state, double *a_out)
-{
-    double omega = state[0];
-    double biasA = state[2];
-    double biasB = state[3];
-
-    double ac = RADIUS * omega * omega;
-
-    a_out[0] = ac + biasA;
-    a_out[1] = ac + biasB;
-}
+K_MSGQ_DEFINE(kalman_msgq, sizeof(struct kalman), 5, 4);
 
 void ukf_init(ukf_t *ukf)
 {
@@ -51,8 +41,8 @@ void ukf_init(ukf_t *ukf)
 
     /* process noise */
     ukf->Q[0 * NUM_STATES + 0] = Q_OMEGA; /* omega */
-    ukf->Q[1 * NUM_STATES + 1] = BIAS_A; /* biasA */
-    ukf->Q[2 * NUM_STATES + 2] = BIAS_B; /* biasB */
+    ukf->Q[1 * NUM_STATES + 1] = BIAS_A;  /* biasA */
+    ukf->Q[2 * NUM_STATES + 2] = BIAS_B;  /* biasB */
 
     /* measurement noise */
     ukf->R[0] = R_VAL;
@@ -68,7 +58,7 @@ void ukf_init(ukf_t *ukf)
     }
 }
 
-static int cholesky_decompose (double *A, double *L, uint8_t n)
+static int cholesky_decompose(double *A, double *L, uint8_t n)
 {
     double sum;
     double d;
@@ -78,7 +68,7 @@ static int cholesky_decompose (double *A, double *L, uint8_t n)
         for (uint8_t j = 0; j <= i; j++) {
 
             sum = 0.0;
-            for (uint8_t k = 0; k < j; j++) {
+            for (uint8_t k = 0; k < j; k++) {
                 sum += L[i * n + k] * L[j * n + k];
             }
             if (i == j) {
@@ -92,7 +82,7 @@ static int cholesky_decompose (double *A, double *L, uint8_t n)
             }
         }
     }
-    
+
     return (0);
 }
 
@@ -133,7 +123,6 @@ static int generate_sigma_points(ukf_t *ukf, double sigma[SIGMA_POINTS][NUM_STAT
 /* assuming omega random -- which is want we want */
 int ukf_predict(ukf_t *ukf)
 {
-    printk("we in predict\n");
     double sigma[SIGMA_POINTS][NUM_STATES];
     double dx[NUM_STATES];
 
@@ -152,8 +141,6 @@ int ukf_predict(ukf_t *ukf)
         }
     }
 
-    printk("we half way through predict\n");
-
     /* predicted covariance */
     memset(ukf->P, 0, sizeof(double) * NUM_STATES * NUM_STATES);
     for (uint8_t i = 0; i < SIGMA_POINTS; i++) {
@@ -171,8 +158,6 @@ int ukf_predict(ukf_t *ukf)
     for (uint8_t i = 0; i < NUM_STATES * NUM_STATES; i++) {
         ukf->P[i] += ukf->Q[i];
     }
-
-    printk("we predicted\n");
 
     return (0);
 }
@@ -195,7 +180,7 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
     double biasA;
     double biasB;
     double ac;
-    
+
     if (generate_sigma_points(ukf, sigma) < 0) {
         return (-EINVAL);
     }
@@ -299,23 +284,21 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     ARG_UNUSED(dummy3);
 
     ukf_t ukf;
-    double accelA; 
+    double accelA;
     double accelB;
     double gyroA;
     double gyroB;
-    double ac; 
+    double avg_gyro;
+    double ac;
     double omega;
     double centripetal;
     int err;
     uint8_t initialised = 0;
+    struct kalman results;
 
     ukf_init(&ukf);
 
-    printk("initialise\n");
-
     while (1) {
-
-        printk("I'm alive\n");
 
         k_sem_take(&sensor_semaphore, K_FOREVER);
         rb_lock();
@@ -329,41 +312,46 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         rb_unlock();
 
-        printk("accelA: %f\n", accelA);
-        printk("accelB: %f\n", accelB);
-        printk("gyroA: %f\n", gyroA);
-        printk("gyroB: %f\n", gyroB);
-
+        // printk("accelA: %f\n", accelA);
+        // printk("accelB: %f\n", accelB);
+        // printk("gyroA: %f\n", gyroA);
+        // printk("gyroB: %f\n", gyroB);
 
         if (!initialised) {
             ac = 0.5 * (accelA + accelB);
             if (ac > 0.0) {
-                ukf.x[0] = sqrt(ac/RADIUS);
+                ukf.x[0] = sqrt(ac / RADIUS);
                 initialised = true;
             }
             continue;
-        } 
+        }
 
-       
         err = ukf_predict(&ukf);
         if (err < 0) {
-            printk("error on predict\n");
+            printk("Error: in predict funtion %d\n", err);
             continue;
         }
-        printk("predicted\n");
         err = ukf_update(&ukf, accelA, accelB);
         if (err < 0) {
-            printk("error on update\n");
+            printk("Error: in update funtion %d\n", err);
             continue;
         }
-        printk("updated\n");
 
         omega = ukf.x[0];
         centripetal = omega * omega * RADIUS;
+        avg_gyro = 0.5 * (gyroA + gyroB);
         printk("centripetal acceleration: %f\n", centripetal);
-        printk("gyroscope: %f\n", 0.5 * (gyroA + gyroB));
+        printk("gyroscope: %f\n", avg_gyro);
 
-        /* give Jack struct with speed and direction */
+        /* clockwise is negative, anti-clockwise is positive */
+        results.magntidue = centripetal;
+        if (avg_gyro < 0) {
+            results.direction = -1;
+        } else {
+            results.direction = 1;
+        }
+
+        k_msgq_put(&kalman_msgq, &results, K_NO_WAIT);
     }
 }
 
