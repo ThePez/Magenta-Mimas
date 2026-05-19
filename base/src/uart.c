@@ -26,7 +26,7 @@
 /* Configuration                                                              */
 /* ========================================================================== */
 
-#define BUFFER_SIZE   256
+#define BUFFER_SIZE   512
 #define JSON_BUF_SIZE BUFFER_SIZE
 #define TX_BUF_SIZE   BUFFER_SIZE
 #define RX_BUF_SIZE   BUFFER_SIZE
@@ -205,7 +205,9 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
         // Translate into keyboard press
         enum hid_kbd_code key = translate_into_button(data.magntidue, data.direction);
         // Pass to HID controller
-        k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
+        if (key != HID_KEY_SPACE) {
+            k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
+        }
 
         // Build JSON packet for PC script
 
@@ -230,7 +232,7 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
         encode_json_packet(&packet, json_buf, sizeof(json_buf));
         // Send it
         print_uart(json_buf);
-        print_uart("\n");
+        print_uart("\r\n");
     }
 }
 

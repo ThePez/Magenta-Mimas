@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "gatt.h"
-#include "rb_tree.h"
-
 #include <zephyr/kernel.h>
 #include "zephyr/sys/reboot.h"
 #include <zephyr/sys/printk.h>
 
 #include <stdint.h>
+
+#include "gatt.h"
+#include "rb_tree.h"
 
 /* ========================================================================== */
 /* ENTRY POINT                                                                */
@@ -32,18 +32,10 @@ int main(void)
         goto reboot;
     }
 
-    char *data = "Base says hi";
-    // struct ble_packet control;
+    char *data = "PULSE";
     while (1) {
         send_sync_pulse_to_helms(data, strlen(data));
-
-        /*if (k_msgq_get(&sensor_msg_queue, &control, K_NO_WAIT) == 0) {
-            printk("Node ID: Helm-%c\n", control.node_num ? 'B' : 'A');
-            printk("acceleration: %f\n", control.data.sensor.imu_data.accel_ms2);
-            printk("gyroscope: %f\n", control.data.sensor.imu_data.gyro_rads);
-        }*/
-
-        k_msleep(1000);
+        k_msleep(100);
     }
 
     return (0);

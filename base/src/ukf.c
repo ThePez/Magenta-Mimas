@@ -1,8 +1,8 @@
 /*
-* Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
-*
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 /* TODO: I have bullshited all the numbers... */
 
@@ -20,7 +20,7 @@
 #include "zephyr/sys/printk.h"
 #include "zephyr/toolchain.h"
 
-K_MSGQ_DEFINE(kalman_msg_queue, sizeof(struct kalman), 5, 4);
+K_MSGQ_DEFINE(kalman_msgq, sizeof(struct kalman), 5, 4);
 
 void ukf_init(ukf_t *ukf)
 {
@@ -41,8 +41,8 @@ void ukf_init(ukf_t *ukf)
 
     /* process noise */
     ukf->Q[0 * NUM_STATES + 0] = Q_OMEGA; /* omega */
-    ukf->Q[1 * NUM_STATES + 1] = BIAS_A; /* biasA */
-    ukf->Q[2 * NUM_STATES + 2] = BIAS_B; /* biasB */
+    ukf->Q[1 * NUM_STATES + 1] = BIAS_A;  /* biasA */
+    ukf->Q[2 * NUM_STATES + 2] = BIAS_B;  /* biasB */
 
     /* measurement noise */
     ukf->R[0] = R_VAL;
@@ -58,7 +58,7 @@ void ukf_init(ukf_t *ukf)
     }
 }
 
-static int cholesky_decompose (double *A, double *L, uint8_t n)
+static int cholesky_decompose(double *A, double *L, uint8_t n)
 {
     double sum;
     double d;
@@ -82,7 +82,7 @@ static int cholesky_decompose (double *A, double *L, uint8_t n)
             }
         }
     }
-    
+
     return (0);
 }
 
@@ -180,7 +180,7 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
     double biasA;
     double biasB;
     double ac;
-    
+
     if (generate_sigma_points(ukf, sigma) < 0) {
         return (-EINVAL);
     }
@@ -284,17 +284,17 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     ARG_UNUSED(dummy3);
 
     ukf_t ukf;
-    double accelA; 
+    double accelA;
     double accelB;
     double gyroA;
     double gyroB;
     double avg_gyro;
-    double ac; 
+    double ac;
     double omega;
     double centripetal;
     int err;
     uint8_t initialised = 0;
-    struct kalman results; 
+    struct kalman results;
 
     ukf_init(&ukf);
 
@@ -320,13 +320,12 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         if (!initialised) {
             ac = 0.5 * (accelA + accelB);
             if (ac > 0.0) {
-                ukf.x[0] = sqrt(ac/RADIUS);
+                ukf.x[0] = sqrt(ac / RADIUS);
                 initialised = true;
             }
             continue;
-        } 
+        }
 
-       
         err = ukf_predict(&ukf);
         if (err < 0) {
             printk("Error: in predict funtion %d\n", err);
@@ -334,7 +333,7 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         }
         err = ukf_update(&ukf, accelA, accelB);
         if (err < 0) {
-             printk("Error: in update funtion %d\n", err);
+            printk("Error: in update funtion %d\n", err);
             continue;
         }
 
@@ -352,8 +351,7 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
             results.direction = 1;
         }
 
-        k_msgq_put(&kalman_msg_queue, &results, K_NO_WAIT);
-
+        k_msgq_put(&kalman_msgq, &results, K_NO_WAIT);
     }
 }
 

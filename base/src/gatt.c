@@ -33,6 +33,7 @@
 static int start_scan(void);
 static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                              struct bt_gatt_discover_params *params);
+static int close_connection(int slot);
 
 /* ========================================================================== */
 /* Per-Connection State                                                       */
@@ -220,7 +221,8 @@ void set_discover_nus_service(struct conn_state *cs)
 
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
-        printk("[ERROR] Discover failed(err %d)\n", err);
+        printk("[ERROR] Discover failed (err %d)\n", err);
+        close_connection(find_slot_by_con(cs->conn));
     }
 }
 
@@ -239,6 +241,7 @@ void set_discover_nus_tx(struct conn_state *cs, const struct bt_gatt_attr *attr)
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
         printk("[ERROR] Discover failed (err %d)\n", err);
+        close_connection(find_slot_by_con(cs->conn));
     }
 }
 
@@ -262,6 +265,7 @@ void set_discover_uuid_gatt_ccc(struct conn_state *cs, const struct bt_gatt_attr
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
         printk("[ERROR] Discover failed (err %d)\n", err);
+        close_connection(find_slot_by_con(cs->conn));
     }
 }
 
@@ -281,6 +285,7 @@ void set_discover_nus_rx(struct conn_state *cs, const struct bt_gatt_attr *attr)
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
         printk("[ERROR] Discover failed (err %d)\n", err);
+        close_connection(find_slot_by_con(cs->conn));
     }
 }
 
@@ -300,6 +305,7 @@ void set_discover_nus_sub(struct conn_state *cs, const struct bt_gatt_attr *attr
     int err = bt_gatt_subscribe(cs->conn, &cs->subscribe_params);
     if (err && err != -EALREADY) {
         printk("[ERROR] Subscribe failed (err %d)\n", err);
+        close_connection(find_slot_by_con(cs->conn));
         return;
     } else {
         printk("[INFO] NUS Subscribed\n");
@@ -500,7 +506,7 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
     rb_lock();
     struct helm_node *node = get_rb_node(slot);
     if (node) {
-        node->connection_status = 0;
+        node->connection_status = 1;
     }
 
     rb_unlock();
@@ -577,7 +583,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 /* Cleanup of conn_state is handled in the disconnected() callback.           */
 /* Returns -EINVAL for bad slot, 0 if already disconnected or on success.     */
 /* ========================================================================== */
-int close_connection(int slot)
+static int close_connection(int slot)
 {
     if (slot < 0 || slot >= NUM_CONNECTIONS) {
         return (-EINVAL);
@@ -587,7 +593,7 @@ int close_connection(int slot)
         return (0);
     }
 
-    atomic_set(&connections[slot].intentional_disconnect, 1);
+    atomic_clear(&connections[slot].intentional_disconnect);
     bt_gatt_unsubscribe(connections[slot].conn, &connections[slot].subscribe_params);
     int err = bt_conn_disconnect(connections[slot].conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
     if (err) {

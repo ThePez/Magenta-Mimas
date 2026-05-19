@@ -51,11 +51,11 @@ static const struct bt_data sd[] = {
 
 static int set_static_address(void)
 {
-#ifdef CHIP_A
-    int slot = 0;
-#else
-    int slot = 1;
+#ifndef NODE_ID
+#error "NODE ID not found"
 #endif
+
+    int slot = NODE_ID;
 
     int err = bt_id_create((bt_addr_le_t *)&helm_addr[slot], NULL);
     if (err < 0) {
