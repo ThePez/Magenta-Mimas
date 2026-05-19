@@ -312,10 +312,10 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         rb_unlock();
 
-        printk("accelA: %f\n", accelA);
-        printk("accelB: %f\n", accelB);
-        printk("gyroA: %f\n", gyroA);
-        printk("gyroB: %f\n", gyroB);
+        // printk("accelA: %f\n", accelA);
+        // printk("accelB: %f\n", accelB);
+        // printk("gyroA: %f\n", gyroA);
+        // printk("gyroB: %f\n", gyroB);
 
         if (!initialised) {
             ac = 0.5 * (accelA + accelB);

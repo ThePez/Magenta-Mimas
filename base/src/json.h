@@ -19,7 +19,7 @@ struct helm_packet {
 struct json_packet {
     struct helm_packet nodeA;
     struct helm_packet nodeB;
-    double speed;
+    uint64_t speed;
     int8_t direction;
 };
 

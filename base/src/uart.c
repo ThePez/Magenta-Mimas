@@ -5,6 +5,7 @@
  */
 
 #include "uart.h"
+#include <stdint.h>
 
 #ifdef UART_USB_C // Disables the file if not found
 
@@ -26,7 +27,7 @@
 /* Configuration                                                              */
 /* ========================================================================== */
 
-#define BUFFER_SIZE   512
+#define BUFFER_SIZE   256
 #define JSON_BUF_SIZE BUFFER_SIZE
 #define TX_BUF_SIZE   BUFFER_SIZE
 #define RX_BUF_SIZE   BUFFER_SIZE
@@ -225,7 +226,7 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
 
         // Fill in remaining items
         packet.direction = data.direction;
-        packet.speed = data.magntidue;
+        packet.speed = (uint64_t)(data.magntidue * 1000); // Convert to uint64_t
 
         // Clear old data and encode buffer
         memset(json_buf, 0, sizeof(json_buf));

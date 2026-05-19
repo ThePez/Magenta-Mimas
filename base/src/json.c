@@ -14,14 +14,14 @@
 static const struct json_obj_descr helm_json_descr[] = {
     JSON_OBJ_DESCR_PRIM(struct helm_packet, magnet_dt, JSON_TOK_INT64),
     JSON_OBJ_DESCR_PRIM(struct helm_packet, mv, JSON_TOK_INT),
-    JSON_OBJ_DESCR_PRIM(struct helm_packet, connection_status, JSON_TOK_UINT)
+    JSON_OBJ_DESCR_PRIM(struct helm_packet, connection_status, JSON_TOK_UINT),
 };
 
 static const struct json_obj_descr json_descr[] = {
     JSON_OBJ_DESCR_OBJECT(struct json_packet, nodeA, helm_json_descr),
     JSON_OBJ_DESCR_OBJECT(struct json_packet, nodeB, helm_json_descr),
-    JSON_OBJ_DESCR_PRIM(struct json_packet, speed, JSON_TOK_DOUBLE_FP),
-    JSON_OBJ_DESCR_PRIM(struct json_packet, direction, JSON_TOK_INT)
+    JSON_OBJ_DESCR_PRIM(struct json_packet, speed, JSON_TOK_INT64),
+    JSON_OBJ_DESCR_PRIM(struct json_packet, direction, JSON_TOK_INT),
 };
 
 /* ========================================================================== */
