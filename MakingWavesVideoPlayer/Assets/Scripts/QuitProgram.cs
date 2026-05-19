@@ -1,11 +1,12 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class QuitProgram : MonoBehaviour
 {
     void Update()
     {
         // Check if the ESC key is pressed
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Keyboard.current[Key.Escape].wasPressedThisFrame)
         {
             // If running in the Unity Editor
 #if UNITY_EDITOR

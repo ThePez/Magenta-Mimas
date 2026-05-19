@@ -1,44 +1,48 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerRotateWithInertia : MonoBehaviour
 {
-    public float Velocity { get; private set; }
+    private record MovementKeys(Key Key, float Velocity)
+    {
+        public float Velocity { get; } = Velocity;
+        public Key Key { get; } = Key;
+    }
 
+    private const float Vel1 = 2.5f;
+    private const float Vel2 = 2 * Vel1;
+    private const float Vel3 = 2 * Vel2;
+    private const float Vel4 = 2 * Vel3;
+
+    private static readonly MovementKeys[] Keys =
+    {
+        new(Key.A, -Vel4),
+        new(Key.S, -Vel3),
+        new(Key.D, -Vel2),
+        new(Key.F, -Vel1),
+        new(Key.H, Vel1),
+        new(Key.J, Vel2),
+        new(Key.K, Vel3),
+        new(Key.L, Vel4)
+    };
+    
+    public float Velocity { get; private set; }
+    
     void Update()
     {
-        if (Input.GetKey(KeyCode.A))
+        float newVelocity = 0;
+
+        foreach (MovementKeys mKey in Keys)
         {
-            Velocity = -20f;
+            if (Keyboard.current[mKey.Key].isPressed)
+            {
+                newVelocity = mKey.Velocity;
+                break;
+            }
         }
-        else if (Input.GetKey(KeyCode.S))
-        {
-            Velocity = -10f;
-        }
-        else if (Input.GetKey(KeyCode.D))
-        {
-            Velocity = -5f;
-        }
-        else if (Input.GetKey(KeyCode.F))
-        {
-            Velocity = -2.5f;
-        }
-        else if (Input.GetKey(KeyCode.G))
-        {
-            Velocity = 2.5f;
-        }
-        else if (Input.GetKey(KeyCode.H))
-        {
-            Velocity = 5f;
-        }
-        else if (Input.GetKey(KeyCode.J))
-        {
-            Velocity = 10f;
-        }
-        else if (Input.GetKey(KeyCode.K))
-        {
-            Velocity = 20f;
-        }
-        else
+
+        Velocity = Mathf.Lerp(Velocity, newVelocity, 10 * Time.deltaTime);
+        if (Mathf.Abs(Velocity) < 0.1)
         {
             Velocity = 0;
         }
