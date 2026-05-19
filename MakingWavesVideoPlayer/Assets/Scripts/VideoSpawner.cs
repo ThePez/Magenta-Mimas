@@ -2,10 +2,13 @@ using UnityEngine;
 using UnityEngine.Video;
 using System.IO;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Serialization;
 
 public class VideoSpawner : MonoBehaviour
 {
-    [Header("Prefabs & Camera")] public GameObject spherePrefab;
+    [Header("Prefabs & Camera")] 
+    [FormerlySerializedAs("spherePrefab")] 
+    public GameObject videoPlayerPrefab;
     public GameObject screenPrefab;
     public Camera mainCamera;
 
@@ -38,10 +41,11 @@ public class VideoSpawner : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             float angle = Mathf.PI * (2f * i + 1) / n;
-            Vector3 spherePos = new(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            Vector3 spherePos = new(Mathf.Sin(angle) * radius, 0f, Mathf.Cos(angle) * radius);
 
-            GameObject sphere = Instantiate(spherePrefab, transform);
+            GameObject sphere = Instantiate(videoPlayerPrefab, transform);
             sphere.transform.localPosition = spherePos;
+            sphere.transform.LookAt(mainCamera?.transform);
 
             GameObject screen = Instantiate(screenPrefab, sphere.transform);
             screen.transform.localPosition = Vector3.up * planeHeight;

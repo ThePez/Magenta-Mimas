@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Video;
 
-public class CameraRaycastVideoControl : MonoBehaviour
+public class CameraViewVideo : MonoBehaviour
 {
     [Header("Configuration")] 
     public float raycastDistance = 30f;
@@ -21,6 +21,7 @@ public class CameraRaycastVideoControl : MonoBehaviour
     private PlayerRotateWithInertia playerRotation;
     private Camera mainCamera;
     private RawImage crosshair;
+    private AudioSource waterAudio;
 
     void Start()
     {
@@ -32,6 +33,7 @@ public class CameraRaycastVideoControl : MonoBehaviour
         playerRotation = player.GetComponent<PlayerRotateWithInertia>();
         
         crosshair = GameObject.FindGameObjectWithTag("Crosshair").GetComponent<RawImage>();
+        waterAudio = GameObject.FindGameObjectWithTag("Audio").GetComponent<AudioSource>();
     }
 
     void Update()
@@ -65,27 +67,20 @@ public class CameraRaycastVideoControl : MonoBehaviour
                 
             if (playerRotation.Velocity == 0)
             {
-                ZoomCamera(targetFOV);
-                
                 Quaternion current = mainCamera.transform.rotation;
                 current.SetLookRotation(hitInfo.transform.position - mainCamera.transform.position);
                 
-                SetCameraRotation(current.normalized);
-                UpdateCrosshair(false);
+                ViewVideo(true, current.normalized);
             }
             else
             {
-                ZoomCamera(normalFOV);
-                SetCameraLocalRotation(Quaternion.identity);
-                UpdateCrosshair(true);
+                ViewVideo(false, Quaternion.identity);
             }
 
             return;
         }
         
-        ZoomCamera(normalFOV);
-        SetCameraLocalRotation(Quaternion.identity);
-        UpdateCrosshair(true);
+        ViewVideo(false, Quaternion.identity);
             
         foreach (VideoPlayer vp in videoPlayers)
         {
@@ -101,28 +96,28 @@ public class CameraRaycastVideoControl : MonoBehaviour
     // -------------------------------------------------
     // Zoom and rotation helpers
     // -------------------------------------------------
-    private void ZoomCamera(float newZoom)
+    private void ViewVideo(bool viewing, Quaternion rotation)
     {
+        float newZoom = viewing ? targetFOV : normalFOV;
         mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, newZoom, zoomSpeed * Time.deltaTime);
-    }
 
-    private void SetCameraLocalRotation(Quaternion newRot)
-    {
-        mainCamera.transform.localRotation = Quaternion.Slerp(mainCamera.transform.localRotation.normalized, 
-            newRot, rotationSpeed * Time.deltaTime);
-    }
-    
-    private void SetCameraRotation(Quaternion newRot)
-    {
-        mainCamera.transform.rotation = Quaternion.Slerp(mainCamera.transform.rotation.normalized, 
-            newRot, rotationSpeed * Time.deltaTime);
-    }
-
-    private void UpdateCrosshair(bool visible)
-    {
-        float alpha = visible ? 1 : 0;
+        float alpha = viewing ? 0 : 1;
         Color crosshairColor = crosshair.color;
         crosshairColor.a = Mathf.Lerp(crosshairColor.a, alpha, Time.deltaTime);
         crosshair.color = crosshairColor;
+
+        float volume = viewing ? 0 : 0.4f ;
+        waterAudio.volume = Mathf.Lerp(waterAudio.volume, volume, Time.deltaTime);
+
+        if (viewing)
+        {
+            mainCamera.transform.rotation = Quaternion.Slerp(mainCamera.transform.rotation.normalized, 
+                rotation, rotationSpeed * Time.deltaTime);
+        }
+        else
+        {
+            mainCamera.transform.localRotation = Quaternion.Slerp(mainCamera.transform.localRotation.normalized, 
+                rotation, rotationSpeed * Time.deltaTime);
+        }
     }
 }
