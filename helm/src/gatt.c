@@ -7,11 +7,14 @@
 #include "gatt.h"
 
 #include "mac.h"
+#include "common.h"
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/services/nus.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+
+#include <time.h>
 
 #define ACK_TIMEOUT K_SECONDS(10)
 
@@ -107,6 +110,13 @@ static void received(struct bt_conn *conn, const void *data, uint16_t len, void 
     ARG_UNUSED(conn);
 
     printk("[INFO] Ping received\n");
+    
+    struct cmd_ble_packet *packet = (struct cmd_ble_packet *)data;
+    if (packet->cmd == 1) {
+        struct timespec tp = {.tv_sec = packet->time};
+        clock_settime(CLOCK_REALTIME, &tp);
+    }
+
     k_sem_give(&notif_sem);
 
     k_work_reschedule(&timeout_work, ACK_TIMEOUT);
