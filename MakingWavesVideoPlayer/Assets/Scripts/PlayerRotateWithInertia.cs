@@ -9,7 +9,7 @@ public class PlayerRotateWithInertia : MonoBehaviour
         public Key Key { get; } = Key;
     }
 
-    private const float Vel1 = 2.5f;
+    private const float Vel1 = 10f;
     private const float Vel2 = 2 * Vel1;
     private const float Vel3 = 2 * Vel2;
     private const float Vel4 = 2 * Vel3;

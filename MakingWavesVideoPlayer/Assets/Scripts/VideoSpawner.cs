@@ -12,8 +12,10 @@ public class VideoSpawner : MonoBehaviour
     public GameObject screenPrefab;
     public Camera mainCamera;
 
-    [Header("Layout")] public float padding = 1f; // space between spheres
+    [Header("Layout")] 
+    public float padding = 1f; // space between spheres
     public float planeHeight = 2f; // height of the quad above each sphere
+    public float screenWidthView = 4f;
 
     void Start()
     {
@@ -38,6 +40,9 @@ public class VideoSpawner : MonoBehaviour
         }
 
         float radius = n * padding / (2f * Mathf.PI);
+        CameraViewVideo view = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<CameraViewVideo>();
+        view.TargetFOV = 2 * Mathf.Atan(screenWidthView / (2 * radius)) * Mathf.Rad2Deg;
+        
         for (int i = 0; i < n; i++)
         {
             float angle = Mathf.PI * (2f * i + 1) / n;

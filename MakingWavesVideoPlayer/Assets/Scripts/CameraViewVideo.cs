@@ -6,10 +6,10 @@ public class CameraViewVideo : MonoBehaviour
 {
     [Header("Configuration")] 
     public float raycastDistance = 30f;
-    public float zoomSpeed = 1f;
-    public float targetFOV = 15f;
     public float normalFOV = 60f;
     public float rotationSpeed = 5f;
+        
+    public float TargetFOV { get; set; }
 
     // -------------------------------------------------
     // Private state
@@ -98,8 +98,8 @@ public class CameraViewVideo : MonoBehaviour
     // -------------------------------------------------
     private void ViewVideo(bool viewing, Quaternion rotation)
     {
-        float newZoom = viewing ? targetFOV : normalFOV;
-        mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, newZoom, zoomSpeed * Time.deltaTime);
+        float newZoom = viewing ? TargetFOV : normalFOV;
+        mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, newZoom, Time.deltaTime);
 
         float alpha = viewing ? 0 : 1;
         Color crosshairColor = crosshair.color;
