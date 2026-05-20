@@ -1,5 +1,7 @@
 """
 start up script
+
+Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
 """
 
 import json
@@ -43,11 +45,11 @@ class Controller(QWidget):
         self.setGeometry(100, 100, 300, 200)
 
         # Create widgets
-        self.label = QLabel("Select an option:")
+        self.label = QLabel("Select Sampling Time (ms):")
 
         self.combo_box = QComboBox()
         self.combo_box.setCurrentText("100")
-        self.combo_box.addItems(["50", "100", "250", "500"])
+        self.combo_box.addItems(["50", "100", "250", "500", "750", "1000"])
 
         self.pulse = QPushButton("Update Sampling Time")
         self.stamp = QPushButton("Sync Timestamps")
@@ -68,10 +70,16 @@ class Controller(QWidget):
         self.setLayout(layout)
 
     def pulse_clicked(self):
+        """
+        Send new sampling time.
+        """
         selected = self.combo_box.currentText()
         self.update_pulse_delay(int(selected))
 
     def stamp_clicked(self):
+        """
+        Send timestamp for synchronisation.
+        """
         self._current_time = datetime.now()
         self.send_timestamp()
 
@@ -151,10 +159,6 @@ class Controller(QWidget):
         self._status_label = QLabel("Disconnected")
         self._status_label.setStyleSheet("color: red; font-weight: bold;")
         layout.addWidget(self._status_label)
-
-        # self._mode_label = QLabel("Mode: Unknown")
-        # self._mode_label.setStyleSheet("color: grey; font-weight: bold;")
-        # layout.addWidget(self._mode_label)
 
         layout.addStretch()
         group.setLayout(layout)
@@ -317,7 +321,7 @@ class SerialReader(QThread):
                         data = json.loads(line)
                         if isinstance(data, dict):
                             # TODO: send to webserver
-                            pass
+                            print(data)
                         else:
                             # print(f"Unexpected JSON type: {line}")
                             pass
