@@ -12,6 +12,7 @@
 
 #include "gatt.h"
 #include "rb_tree.h"
+#include "ukf.h"
 
 /* ========================================================================== */
 /* ENTRY POINT                                                                */
@@ -35,7 +36,7 @@ int main(void)
     char *data = "PULSE";
     while (1) {
         send_sync_pulse_to_helms(data, strlen(data));
-        k_msleep(250);
+        k_msleep(PULSE_DELAY);
     }
 
     return (0);

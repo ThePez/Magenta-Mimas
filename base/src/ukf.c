@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/* TODO: I have bullshited all the numbers... */
-
 #include "ukf.h"
 #include "matrix.h"
 #include "common.h"
@@ -277,6 +275,27 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
     return (0);
 }
 
+void add_gyro_sample(struct gyro_ring *buf, double sample) {
+
+    buf->val[buf->head] = sample;
+    buf->head = (buf->head + 1) % GYRO_RING_BUF_SIZE;
+    if (buf->count < GYRO_RING_BUF_SIZE) {
+        buf->count++;
+    }
+
+}
+
+uint16_t gryo_moving_average(struct gyro_ring *buf) {
+
+    uint16_t sum = 0;
+    
+    for (uint8_t i = 0; i < buf->count; i++) {
+        sum += (uint16_t)(buf->val[i] * 100);
+    }
+
+    return (sum);
+}
+
 void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 {
     ARG_UNUSED(dummy1);
@@ -295,6 +314,13 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     int err;
     uint8_t initialised = 0;
     struct kalman results;
+    uint16_t sum_gyro;
+
+    struct gyro_ring buf = {
+        .val = {0},
+        .head = 0,
+        .count = 0
+    };
 
     ukf_init(&ukf);
 
@@ -319,6 +345,7 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         if (!initialised) {
             ac = 0.5 * (accelA + accelB);
+            // ac = 0.5 * (fabs(gyroA) + fabs(gyroB));
             if (ac > 0.0) {
                 ukf.x[0] = sqrt(ac / RADIUS);
                 initialised = true;
@@ -326,20 +353,29 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
             continue;
         }
 
+        avg_gyro = 0.5 * (gyroA + gyroB);
+        add_gyro_sample(&buf, avg_gyro);
+
         err = ukf_predict(&ukf);
         if (err < 0) {
             printk("Error: in predict funtion %d\n", err);
             continue;
         }
         err = ukf_update(&ukf, accelA, accelB);
+        // err = ukf_update(&ukf, fabs(gyroA), fabs(gyroB));
         if (err < 0) {
             printk("Error: in update funtion %d\n", err);
             continue;
         }
 
-        omega = ukf.x[0];
+        sum_gyro = gryo_moving_average(&buf);
+        if (sum_gyro == 0) {
+            omega = 0;
+        } else {
+            omega = ukf.x[0];
+        }
+
         centripetal = omega * omega * RADIUS;
-        avg_gyro = 0.5 * (gyroA + gyroB);
         printk("centripetal acceleration: %f\n", centripetal);
         printk("gyroscope: %f\n", avg_gyro);
 

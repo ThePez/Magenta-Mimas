@@ -11,14 +11,19 @@
 #define NUM_MEAS     2
 #define SIGMA_POINTS (2 * NUM_STATES + 1)
 
-#define RADIUS  0.4
-#define Q_OMEGA 0.01 /* higher value more unreliable system*/
+#define PULSE_DELAY 250
+#define RADIUS  0.125
+#define Q_OMEGA 0.1 /* higher value more unreliable system*/
 #define BIAS_A  1e-3
 #define BIAS_B  1e-3
-#define R_VAL   0.5 /* higher for untrustworthy sensor*/
+#define R_VAL   0.25 /* higher for untrustworthy sensor*/
 #define ALPHA   0.3
 #define BETA    2.0
 #define KAPPA   0.0
+
+#define GYRO_RING_BUF_SIZE 5
+
+#include <stdint.h>
 
 typedef struct {
     double x[NUM_STATES];              /* state matrix*/
@@ -36,6 +41,12 @@ struct kalman {
 };
 
 extern struct k_msgq kalman_msgq; 
+
+struct gyro_ring {
+    double val[GYRO_RING_BUF_SIZE];
+    uint8_t head;
+    uint8_t count;
+};
 
 void ukf_init(ukf_t *ukf);
 int ukf_predict(ukf_t *ukf);
