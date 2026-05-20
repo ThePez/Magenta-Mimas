@@ -41,7 +41,9 @@ public class VideoSpawner : MonoBehaviour
 
         float radius = n * padding / (2f * Mathf.PI);
         CameraViewVideo view = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<CameraViewVideo>();
+        
         view.TargetFOV = 2 * Mathf.Atan(screenWidthView / (2 * radius)) * Mathf.Rad2Deg;
+        view.RaycastDistance = radius * 2;
         
         for (int i = 0; i < n; i++)
         {

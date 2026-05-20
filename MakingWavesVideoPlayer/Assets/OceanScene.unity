@@ -810,7 +810,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24649f8186221d64fbfad1cce868bc77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioPlayer
-  audioSource: {fileID: 0}
 --- !u!82 &664978721
 AudioSource:
   m_ObjectHideFlags: 0
@@ -1030,6 +1029,7 @@ MonoBehaviour:
   mainCamera: {fileID: 1823688466}
   padding: 20
   planeHeight: 2.5
+  screenWidthView: 4
 --- !u!1 &1823688464
 GameObject:
   m_ObjectHideFlags: 0
@@ -1275,9 +1275,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37f51ec26e144be429266e39494654a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayViudeoi
-  raycastDistance: 60
-  zoomSpeed: 1
-  targetFOV: 6
   normalFOV: 60
   rotationSpeed: 8
 --- !u!1 &2013410473

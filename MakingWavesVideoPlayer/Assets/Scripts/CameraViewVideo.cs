@@ -5,12 +5,12 @@ using UnityEngine.Video;
 public class CameraViewVideo : MonoBehaviour
 {
     [Header("Configuration")] 
-    public float raycastDistance = 30f;
     public float normalFOV = 60f;
     public float rotationSpeed = 5f;
         
     public float TargetFOV { get; set; }
-
+    public float RaycastDistance { get; set; }
+    
     // -------------------------------------------------
     // Private state
     // -------------------------------------------------
@@ -46,8 +46,8 @@ public class CameraViewVideo : MonoBehaviour
             rayOrigin.y = vp.transform.position.y;
             Ray ray = new(rayOrigin, forward);
             
-            Debug.DrawRay(rayOrigin, forward * raycastDistance);
-            if (!Physics.Raycast(ray, out RaycastHit hitInfo, raycastDistance))
+            Debug.DrawRay(rayOrigin, forward * RaycastDistance);
+            if (!Physics.Raycast(ray, out RaycastHit hitInfo, RaycastDistance))
             {
                 continue;
             }
