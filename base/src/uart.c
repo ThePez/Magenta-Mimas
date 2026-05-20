@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "translation.h"
 #include "uart.h"
-#include <time.h>
 
 #ifdef UART_USB_C // Disables the file if not found
 
+#include "translation.h"
 #include "json.h"
+#include "ukf.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
@@ -20,6 +20,7 @@
 
 #include <sys/errno.h>
 #include <string.h>
+#include <time.h>
 
 /* ========================================================================== */
 /* Configuration                                                              */
@@ -205,22 +206,41 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
     uart_interrupt_driver_init(NULL);
 
     struct json_packet packet = {0};
+    struct cmd_packet cmd = {0};
     while (1) {
         k_msleep(25);
 
         /* =============== RX STUFF ================== */
 
+        if (k_msgq_get(&uart_rx_msgq, json_buf, K_NO_WAIT) == 0) {
+            if (decode_cmd_packet(json_buf, strlen(json_buf), &cmd) == 0) {
+                switch (cmd.cmd) {
+                case 1: {
+                    // PULSE UPDATE
+                    PULSE_DELAY = cmd.pulse;
+                    break;
+                }
+                case 2: {
+                    // TIME UPDATE
+                    set_absolute_time(cmd.time);
+                    break;
+                }
+                }
+            }
+        }
+
         /* =============== TX STUFF ================== */
 
         // Grab data from translation
-        k_msgq_get(&trans_queue, &packet, K_NO_WAIT);
+        if (k_msgq_get(&trans_queue, &packet, K_NO_WAIT) == 0) {
 
-        // Clear old data and encode buffer
-        memset(json_buf, 0, sizeof(json_buf));
-        encode_json_packet(&packet, json_buf, sizeof(json_buf));
-        // Send it
-        print_uart(json_buf);
-        print_uart("\r\n");
+            // Clear old data and encode buffer
+            memset(json_buf, 0, sizeof(json_buf));
+            encode_json_packet(&packet, json_buf, sizeof(json_buf));
+            // Send it
+            print_uart(json_buf);
+            print_uart("\r\n");
+        }
     }
 }
 

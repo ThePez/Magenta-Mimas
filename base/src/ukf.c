@@ -5,18 +5,22 @@
  */
 
 #include "ukf.h"
+
 #include "matrix.h"
 #include "common.h"
 #include "rb_tree.h"
+
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <errno.h>
 
-#include "zephyr/kernel.h"
-#include "zephyr/sys/printk.h"
-#include "zephyr/toolchain.h"
+#include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/toolchain.h>
+
+#define PULSE_DELAY_DEFAULT 100
+uint16_t PULSE_DELAY = PULSE_DELAY_DEFAULT;
 
 K_MSGQ_DEFINE(kalman_msgq, sizeof(struct kalman), 5, 4);
 
