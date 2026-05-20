@@ -5,20 +5,70 @@ start up script
 import json
 from datetime import datetime
 import serial
-import threading
 import serial.tools.list_ports
-import time
+import sys
+from PyQt5.QtCore import QThread
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget,
+    QPushButton,
+    QComboBox,
+    QVBoxLayout,
+    QLabel,
+)
 
-# open coms port on startup
-# send jack (base) json of key: "time", value: datetime epoch time
-# receive json data from base
+class Window(QWidget):
+    """
+    Initialise the GUI.
+    """
 
-class SerialReader(threading.Thread):
+    def __init__(self):
+
+        super().__init__()
+        self.controller : Controller = Controller()
+        self.controller._get_port()
+        self.controller._connect()
+
+        self.setWindowTitle("COMS4011 -- Magenta Mimas")
+        self.setGeometry(100, 100, 300, 200)
+
+        # Create widgets
+        self.label = QLabel("Select an option:")
+
+        self.combo_box = QComboBox()
+        self.combo_box.setCurrentText("100")
+        self.combo_box.addItems(["50", "100", "250", "500"])
+
+        self.pulse = QPushButton("Update Sampling Time")
+        self.stamp = QPushButton("Sync Timestamps")
+
+        # Connect buttons to functions
+        self.pulse.clicked.connect(self.pulse_clicked)
+        self.stamp.clicked.connect(self.stamp_clicked)
+
+        # Layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.combo_box)
+        layout.addWidget(self.pulse)
+        layout.addWidget(self.stamp)
+
+        self.setLayout(layout)
+
+    def pulse_clicked(self):
+        selected = self.combo_box.currentText()
+        self.controller._update_pulse_delay(int(selected))
+
+    def stamp_clicked(self):
+        self.controller._get_current_time()
+        self.controller._send_timestamp()
+
+class SerialReader(QThread):
     """
     Background thread that reads JSON-formatted lines from a serial port.
     """
 
-    def __init__(self, serial_port: serial.Serial) -> None:
+    def __init__(self, serial_port: serial.Serial, disconnected) -> None:
         """
         Initialise the reader thread.
 
@@ -29,6 +79,7 @@ class SerialReader(threading.Thread):
         """
 
         super().__init__()
+        self._disconnect = disconnected
         self._running = True
         self._ser = serial_port
 
@@ -61,9 +112,9 @@ class SerialReader(threading.Thread):
                 print(f"Couldn't decode data: {e}")
             except serial.SerialException as e:
                 print(f"Serial port disconnected: {e}")
-                Controller._disconnect()
+                self._disconnect()
 
-            time.sleep(0.01)
+            self.msleep(10)
 
     def stop(self) -> None:
         """
@@ -97,6 +148,7 @@ class Controller:
             ports = list(serial.tools.list_ports.comports())
 
             for port in ports:
+                print(port)
                 if port.description.strip().upper() == "WAVES HID":
                     self._port = port.device
                     return
@@ -115,7 +167,7 @@ class Controller:
             self._serial_port = serial.Serial(self._port, 115200, timeout=0.1)
 
             # start the background UART listener thread
-            self.serial_thread = SerialReader(self._serial_port)
+            self.serial_thread = SerialReader(self._serial_port, self._disconnect)
             self.serial_thread.start()
 
         except serial.SerialException as e:
@@ -154,19 +206,20 @@ class Controller:
         if self._serial_port and self._serial_port.is_open:
             try:
                 self._serial_port.write(f"{cmd}\n".encode())
+                print(cmd)
             except serial.SerialException as e:
                 print(f"Error sending command: {e}")
         else:
             print("Serial Port not connected")
 
-    def _update_pulse_delay(self, delay: str) -> None:
+    def _update_pulse_delay(self, delay: int) -> None:
         """
         Updates sampling time given user input.
         """
 
         payload = {
             "cmd":1,
-            "pulse":int(delay),
+            "pulse":delay,
             "time": 0
         }
         cmd = json.dumps(payload)
@@ -174,28 +227,18 @@ class Controller:
         if self._serial_port and self._serial_port.is_open:
             try:
                 self._serial_port.write(f"{cmd}\n".encode())
+                print(cmd)
             except serial.SerialException as e:
                 print(f"Error sending command: {e}")
         else:
             print("Serial Port not connected")
 
-
-
 if __name__ == "__main__":
-    controller: Controller = Controller()
-    controller._get_port()
-    controller._connect()
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
 
-    previous = datetime.now()
+    window = Window()
+    window.show()
 
-    while True:
-
-        diff = datetime.now() - previous
-        if (diff.total_seconds() == 60):
-            controller._send_timestamp()
-            previous = datetime.now()
-
-        delay = input("Pulse delay: ")
-        controller._update_pulse_delay(delay)
-
+    sys.exit(app.exec_())
 
