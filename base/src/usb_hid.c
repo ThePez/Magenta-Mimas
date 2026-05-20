@@ -5,14 +5,16 @@
  */
 
 #include "usb_hid.h"
+
 #include "usbd_init.h"
+#include "ukf.h"
 
 #include <stdint.h>
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
-#include "zephyr/sys/printk.h"
-#include "zephyr/usb/class/hid.h"
+#include <zephyr/sys/printk.h>
+#include <zephyr/usb/class/hid.h>
 #include <zephyr/usb/usbd.h>
 #include <zephyr/usb/class/usbd_hid.h>
 
@@ -152,7 +154,7 @@ static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const 
 enum hid_kbd_code translate_into_button(double speed, int8_t direction)
 {
     if (speed < THRESHOLD_A) {
-        return HID_KEY_SPACE;
+        return HID_KEY_G;
     }
     // Map Speed into 4 options
     uint8_t code = 1;
@@ -189,7 +191,7 @@ enum hid_kbd_code translate_into_button(double speed, int8_t direction)
         return HID_KEY_L;
     default:
         // Shouldn't be possible
-        return HID_KEY_SPACE;
+        return HID_KEY_G;
     }
 }
 
@@ -252,7 +254,7 @@ static void hid_thread(void *p1, void *p2, void *p3)
             printk("[WARN] HID submit error (key down)\n");
         }
 
-        k_msleep(50);
+        k_msleep(PULSE_DELAY);
 
         report[KB_KEY_CODE1] = 0;
         if (hid_device_submit_report(hid_dev, KB_REPORT_COUNT, report)) {
