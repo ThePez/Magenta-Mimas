@@ -11,7 +11,7 @@
 #define NUM_MEAS     2
 #define SIGMA_POINTS (2 * NUM_STATES + 1)
 
-#define PULSE_DELAY 250
+#define PULSE_DELAY 100
 #define RADIUS  0.125
 #define Q_OMEGA 0.1 /* higher value more unreliable system*/
 #define BIAS_A  1e-3
