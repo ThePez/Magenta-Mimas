@@ -285,15 +285,15 @@ void add_gyro_sample(struct gyro_ring *buf, double sample) {
 
 }
 
-uint16_t gryo_moving_average(struct gyro_ring *buf) {
+uint8_t gryo_moving_average(struct gyro_ring *buf) {
 
-    uint16_t sum = 0;
+    double sum = 0;
     
     for (uint8_t i = 0; i < buf->count; i++) {
-        sum += (uint16_t)(buf->val[i] * 100);
+        sum += fabs(buf->val[i]);
     }
 
-    return (sum);
+    return (sum < 0.1);
 }
 
 void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
@@ -314,7 +314,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     int err;
     uint8_t initialised = 0;
     struct kalman results;
-    uint16_t sum_gyro;
 
     struct gyro_ring buf = {
         .val = {0},
@@ -368,13 +367,11 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
             continue;
         }
 
-        sum_gyro = gryo_moving_average(&buf);
-        if (sum_gyro == 0) {
-            omega = 0;
-        } else {
-            omega = ukf.x[0];
+        if (gryo_moving_average(&buf)) {
+            ukf.x[0] = 0;
         }
 
+        omega = ukf.x[0];
         centripetal = omega * omega * RADIUS;
         printk("centripetal acceleration: %f\n", centripetal);
         printk("gyroscope: %f\n", avg_gyro);
