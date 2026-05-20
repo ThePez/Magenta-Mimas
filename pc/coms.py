@@ -7,6 +7,7 @@ from datetime import datetime
 import serial
 import threading
 import serial.tools.list_ports
+import time
 
 # open coms port on startup
 # send jack (base) json of key: "time", value: datetime epoch time
@@ -63,17 +64,17 @@ class SerialReader(threading.Thread):
                             # send to webserver
                             continue
                         else:
-                            print(f"Unexpected JSON type: {line}")
+                            print(line)
                     except json.JSONDecodeError:
-                        # Non-JSON output from firmware, pass to logger
-                        print(f"Unexpected JSON type: {line}")
+                        # Non-JSON output from firmware
+                        print(line)
             except UnicodeDecodeError as e:
                 print(f"Couldn't decode data: {e}")
             except serial.SerialException as e:
                 print(f"Serial port disconnected: {e}")
                 Controller._disconnect()
 
-            self.msleep(10)
+            time.sleep(0.01)
 
     def stop(self) -> None:
         """
@@ -123,11 +124,11 @@ class Controller:
 
         try:
             self._serial_port = serial.Serial(self._port, 115200, timeout=0.1)
-            print("Connected!")
 
             # start the background UART listener thread
             self.serial_thread = SerialReader(self._serial_port)
             self.serial_thread.start()
+            print("Connected!")
 
         except serial.SerialException as e:
             print(f"Connection failed: {e}")
@@ -146,8 +147,38 @@ class Controller:
             self._serial_port.close()
             print("Disconnected from serial port")
 
+    def _get_current_time(self) -> None:
+        self.current_time = datetime.now()
+
+    def _send_timestamp(self) -> None:
+        """
+        Transmit timestamp to base.
+        """
+
+        self._get_current_time()
+        payload = {
+            "cmd":2,
+            "pulse":0,
+            "time": self.current_time.timestamp()
+        }
+        cmd = json.dumps(payload)
+
+        if self._serial_port and self._serial_port.is_open:
+            try:
+                self._serial_port.write(f"{cmd}\n".encode())
+            except serial.SerialException as e:
+                print(f"Error sending command: {e}")
+        else:
+            print("Serial Port not connected")
+
+
 if __name__ == "__main__":
     controller: Controller = Controller()
+    controller._get_port()
     controller._connect()
+
+    while (1):
+        controller._send_timestamp()
+        time.sleep(500)
 
 
