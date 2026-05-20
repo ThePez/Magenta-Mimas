@@ -7,10 +7,13 @@
 #ifndef UKF_H
 #define UKF_H
 
+#include <stdint.h>
+
 #define NUM_STATES   3
 #define NUM_MEAS     2
 #define SIGMA_POINTS (2 * NUM_STATES + 1)
 
+// extern uint16_t PULSE_DELAY;
 #define PULSE_DELAY 100
 #define RADIUS  0.125
 #define Q_OMEGA 0.1 /* higher value more unreliable system*/
@@ -22,8 +25,6 @@
 #define KAPPA   0.0
 
 #define GYRO_RING_BUF_SIZE 5
-
-#include <stdint.h>
 
 typedef struct {
     double x[NUM_STATES];              /* state matrix*/

@@ -368,7 +368,7 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         }
 
         if (gryo_moving_average(&buf)) {
-            ukf.x[0] = 0;
+            ukf.x[0] = 0.1;
         }
 
         omega = ukf.x[0];
