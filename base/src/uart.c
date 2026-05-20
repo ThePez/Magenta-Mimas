@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "translation.h"
 #include "uart.h"
+#include <time.h>
 
 #ifdef UART_USB_C // Disables the file if not found
 
 #include "json.h"
-#include "ukf.h"
-#include "rb_tree.h"
-#include "usb_hid.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
@@ -28,8 +27,6 @@
 
 #define UART_PRIO  6
 #define UART_STACK 4096
-
-#define JSON_UPDATE_MS 5000
 
 #define BUFFER_SIZE   256
 #define JSON_BUF_SIZE BUFFER_SIZE
@@ -182,6 +179,15 @@ static int uart_interrupt_driver_init(void *user_data)
     return (0);
 }
 
+int set_absolute_time(time_t time)
+{
+    struct timespec ts;
+    ts.tv_sec = time;
+    ts.tv_nsec = 0;
+
+    return (clock_settime(CLOCK_REALTIME, &ts));
+}
+
 /* ========================================================================== */
 /* UART Thread                                                                */
 /* Decodes incoming JSON command strings from the GUI and dispatches them     */
@@ -198,51 +204,16 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
 
     uart_interrupt_driver_init(NULL);
 
-    struct kalman data = {0};
-    // RB_tree node for magnet data fetching
-    struct helm_node *nodeA;
-    struct helm_node *nodeB;
     struct json_packet packet = {0};
-
-    int64_t prev = 0;
-
     while (1) {
-        // Grab data from kalman
-        k_msgq_get(&kalman_msgq, &data, K_FOREVER);
-        // Translate into keyboard press
-        enum hid_kbd_code key = translate_into_button(data.magntidue, data.direction);
-        // Pass to HID controller
-        if (key != HID_KEY_SPACE) {
-            k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
-        }
+        k_msleep(25);
 
-        // Only send JSON every 5 seconds
-        int64_t current = k_uptime_get();
-        if (current - prev < JSON_UPDATE_MS) {
-            continue;
-        }
+        /* =============== RX STUFF ================== */
 
-        prev = current;
+        /* =============== TX STUFF ================== */
 
-        // Build JSON packet for PC script
-
-        // Grab tree stuff
-        rb_lock();
-        nodeA = get_rb_node(0);
-        packet.nodeA.mv = nodeA->battery_data.bat_mv;
-        packet.nodeA.charge = nodeA->battery_data.bat_charge;
-        packet.nodeA.connection_status = nodeA->connection_status;
-        packet.nodeA.magnet_dt = nodeA->magnet_dt;
-        nodeB = get_rb_node(1);
-        packet.nodeB.mv = nodeB->battery_data.bat_mv;
-        packet.nodeB.charge = nodeB->battery_data.bat_charge;
-        packet.nodeB.connection_status = nodeB->connection_status;
-        packet.nodeB.magnet_dt = nodeB->magnet_dt;
-        rb_unlock();
-
-        // Fill in remaining items
-        packet.direction = data.direction;
-        packet.speed = (uint64_t)(data.magntidue * 1000); // Convert to uint64_t
+        // Grab data from translation
+        k_msgq_get(&trans_queue, &packet, K_NO_WAIT);
 
         // Clear old data and encode buffer
         memset(json_buf, 0, sizeof(json_buf));
