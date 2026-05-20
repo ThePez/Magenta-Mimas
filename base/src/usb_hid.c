@@ -25,10 +25,10 @@
 #define HID_THREAD_PRIORITY 5
 
 // Speed options for keyboard output
-#define THRESHOLD_A 5
+#define THRESHOLD_A 3 
 #define THRESHOLD_B 10
-#define THRESHOLD_C 15
-#define THRESHOLD_D 20
+#define THRESHOLD_C 20
+#define THRESHOLD_D 40
 
 // Keyboard output options
 #define SPEED_0_DIR_0 BIT(0) /* 1  */
@@ -153,6 +153,8 @@ static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const 
 /* Map the inputs of speed and direction to 8 different output keys */
 enum hid_kbd_code translate_into_button(double speed, int8_t direction)
 {
+    speed *= 8;
+
     if (speed < THRESHOLD_A) {
         return HID_KEY_G;
     }

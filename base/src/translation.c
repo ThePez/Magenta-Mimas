@@ -56,16 +56,19 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
         prev = current;
         // Grab tree stuff
         rb_lock();
+
         nodeA = get_rb_node(0);
         packet.nodeA.mv = nodeA->battery_data.bat_mv;
         packet.nodeA.charge = nodeA->battery_data.bat_charge;
         packet.nodeA.connection_status = nodeA->connection_status;
         packet.nodeA.magnet_dt = nodeA->magnet_dt;
+
         nodeB = get_rb_node(1);
         packet.nodeB.mv = nodeB->battery_data.bat_mv;
         packet.nodeB.charge = nodeB->battery_data.bat_charge;
         packet.nodeB.connection_status = nodeB->connection_status;
         packet.nodeB.magnet_dt = nodeB->magnet_dt;
+
         rb_unlock();
 
         // Fill in remaining items

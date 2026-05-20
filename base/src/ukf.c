@@ -324,8 +324,8 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     ukf_init(&ukf);
 
     while (1) {
-
         k_sem_take(&sensor_semaphore, K_FOREVER);
+
         rb_lock();
         struct helm_node *helm_a = get_rb_node(0);
         struct helm_node *helm_b = get_rb_node(1);
