@@ -5,7 +5,6 @@
  */
 
 #include "uart.h"
-#include <stdint.h>
 
 #ifdef UART_USB_C // Disables the file if not found
 
@@ -26,6 +25,11 @@
 /* ========================================================================== */
 /* Configuration                                                              */
 /* ========================================================================== */
+
+#define UART_PRIO  6
+#define UART_STACK 4096
+
+#define JSON_UPDATE_MS 5000
 
 #define BUFFER_SIZE   256
 #define JSON_BUF_SIZE BUFFER_SIZE
@@ -200,6 +204,8 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
     struct helm_node *nodeB;
     struct json_packet packet = {0};
 
+    int64_t prev = 0;
+
     while (1) {
         // Grab data from kalman
         k_msgq_get(&kalman_msgq, &data, K_FOREVER);
@@ -210,16 +216,26 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
             k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
         }
 
+        // Only send JSON every 5 seconds
+        int64_t current = k_uptime_get();
+        if (current - prev < JSON_UPDATE_MS) {
+            continue;
+        }
+
+        prev = current;
+
         // Build JSON packet for PC script
 
         // Grab tree stuff
         rb_lock();
         nodeA = get_rb_node(0);
-        packet.nodeA.mv = nodeA->battery_data.bat_charge_pc;
+        packet.nodeA.mv = nodeA->battery_data.bat_mv;
+        packet.nodeA.charge = nodeA->battery_data.bat_charge;
         packet.nodeA.connection_status = nodeA->connection_status;
         packet.nodeA.magnet_dt = nodeA->magnet_dt;
         nodeB = get_rb_node(1);
-        packet.nodeB.mv = nodeB->battery_data.bat_charge_pc;
+        packet.nodeB.mv = nodeB->battery_data.bat_mv;
+        packet.nodeB.charge = nodeB->battery_data.bat_charge;
         packet.nodeB.connection_status = nodeB->connection_status;
         packet.nodeB.magnet_dt = nodeB->magnet_dt;
         rb_unlock();
@@ -237,6 +253,6 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
     }
 }
 
-K_THREAD_DEFINE(uart_thread, 4096, uart_thread_entry, NULL, NULL, NULL, 6, 0, 0);
+K_THREAD_DEFINE(uart_thread, UART_STACK, uart_thread_entry, NULL, NULL, NULL, UART_PRIO, 0, 0);
 
 #endif

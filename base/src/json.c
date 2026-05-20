@@ -13,6 +13,7 @@
 
 static const struct json_obj_descr helm_json_descr[] = {
     JSON_OBJ_DESCR_PRIM(struct helm_packet, magnet_dt, JSON_TOK_INT64),
+    JSON_OBJ_DESCR_PRIM(struct helm_packet, charge, JSON_TOK_UINT),
     JSON_OBJ_DESCR_PRIM(struct helm_packet, mv, JSON_TOK_INT),
     JSON_OBJ_DESCR_PRIM(struct helm_packet, connection_status, JSON_TOK_UINT),
 };

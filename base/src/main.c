@@ -35,7 +35,7 @@ int main(void)
     char *data = "PULSE";
     while (1) {
         send_sync_pulse_to_helms(data, strlen(data));
-        k_msleep(100);
+        k_msleep(250);
     }
 
     return (0);

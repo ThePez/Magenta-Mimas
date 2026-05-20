@@ -253,9 +253,9 @@ void print_rb_node(void)
     struct helm_node *node;
     RB_FOR_EACH_CONTAINER(&tree, node, rbnode) {
         printk("[INFO] helm: id=%u | sensor: ts=%lld acc: %lf gyro: %lf"
-               " | status: ts=%lld mv=%u\n",
+               " | status: ts=%lld mv=%f charge=%d\n",
                node->id, node->sesnor_ts, node->imu_data.accel_ms2, node->imu_data.gyro_rads,
-               node->battery_ts, node->battery_data.bat_charge_pc);
+               node->battery_ts, node->battery_data.bat_mv, node->battery_data.bat_charge);
     }
 
     rb_unlock();
@@ -299,8 +299,10 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
                     }
                     case BATTERY: {
                         struct bat_packet data = packet.data.bat;
-                        node->battery_data.bat_charge_pc = data.bat_charge_pc;
+                        node->battery_data.bat_charge = data.bat_charge;
+                        node->battery_data.bat_mv = data.bat_mv;
                         node->battery_ts = current;
+                        // printk("Battery Packet: %d%%, %fmv\n", data.bat_charge, data.bat_mv);
                         break;
                     }
                     }

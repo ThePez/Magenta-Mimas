@@ -12,6 +12,7 @@
 
 struct helm_packet {
     uint64_t magnet_dt;
+    uint8_t charge;
     int32_t mv;
     uint8_t connection_status;
 };
