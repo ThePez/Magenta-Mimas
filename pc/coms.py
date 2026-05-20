@@ -8,36 +8,31 @@ import serial
 import serial.tools.list_ports
 import sys
 from typing import Optional
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QObject, pyqtSlot, QTimer
-from PyQt5.QtGui import QPainter, QColor, QPen, QFont
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
     QVBoxLayout,
-    QMainWindow,
     QMessageBox,
-    QTabWidget,
-    QFrame,
-    QGridLayout,
     QPushButton,
     QComboBox,
     QLabel,
-    QTextEdit,
     QGroupBox,
     QHBoxLayout,
-    QLineEdit,
-    QCheckBox,
-    QTableWidget,
-    QTableWidgetItem,
-    QSizePolicy,
 )
 
 class Controller(QWidget):
     """
-    Initialise the GUI.
+    Main application window and central controller.
+
+    Manages the serial connection lifecycle, routes incoming serial data to
+    the appropriate UI components, and owns all top-level widgets.
     """
 
     def __init__(self):
+        """
+        Initialise GUI
+        """
 
         super().__init__()
         self._current_time = 0
@@ -146,12 +141,6 @@ class Controller(QWidget):
         refresh_btn.clicked.connect(self._refresh_ports)
         layout.addWidget(refresh_btn)
 
-        layout.addWidget(QLabel("Baudrate:"))
-        self._baudrate_combo = QComboBox()
-        self._baudrate_combo.addItems(["9600", "115200", "230400", "460800"])
-        self._baudrate_combo.setCurrentText("115200")
-        layout.addWidget(self._baudrate_combo)
-
         self._connect_btn = QPushButton("Connect")
         self._connect_btn.clicked.connect(self._toggle_connection)
         self._connect_btn.setStyleSheet(
@@ -163,9 +152,9 @@ class Controller(QWidget):
         self._status_label.setStyleSheet("color: red; font-weight: bold;")
         layout.addWidget(self._status_label)
 
-        self._mode_label = QLabel("Mode: Unknown")
-        self._mode_label.setStyleSheet("color: grey; font-weight: bold;")
-        layout.addWidget(self._mode_label)
+        # self._mode_label = QLabel("Mode: Unknown")
+        # self._mode_label.setStyleSheet("color: grey; font-weight: bold;")
+        # layout.addWidget(self._mode_label)
 
         layout.addStretch()
         group.setLayout(layout)
@@ -203,7 +192,10 @@ class Controller(QWidget):
 
     @pyqtSlot()
     def _toggle_connection(self) -> None:
-        """Connect to or disconnect from the currently selected serial port."""
+        """
+        Connect to or disconnect from the currently selected serial port.
+        """
+
         if self._serial_port and self._serial_port.is_open:
             self._disconnect()
         else:
@@ -217,7 +209,7 @@ class Controller(QWidget):
         Shows a critical error dialogue if the port cannot be opened.
         """
         port: Optional[str] = self._port_combo.currentData()
-        baudrate: int = int(self._baudrate_combo.currentText())
+        baudrate: int = 115200
 
         if not port:
             QMessageBox.warning(self, "Connection Error", "No valid port selected.")
@@ -243,7 +235,10 @@ class Controller(QWidget):
             QMessageBox.critical(self, "Connection Error", f"Failed to connect: {e}")
 
     def _disconnect(self, message: str = "Disconnected from serial port") -> None:
-        """Stop the reader thread and close the serial port."""
+        """
+        Stop the reader thread and close the serial port.
+        """
+
         if self.serial_thread:
             self.serial_thread.stop()
             self.serial_thread.wait()
@@ -273,6 +268,7 @@ class Controller(QWidget):
         Called via SerialReader.port_error_signal.  Cleans up the
         connection state and informs the user.
         """
+
         self._disconnect("Unexpected disconnection from serial port")
         QMessageBox.critical(
             self, "Serial Port Error", "Serial port has been disconnected"
@@ -281,23 +277,13 @@ class Controller(QWidget):
 class SerialReader(QThread):
     """
     Background thread that reads JSON-formatted lines from a serial port.
-
-    Each valid JSON line is emitted via "data_received_signal". Lines that
-    cannot be decoded as JSON are forwarded to the caller's logger.  A
     "port_error_signal" is emitted if the port is unexpectedly disconnected.
 
     Signals
-    -------
-    data_received_signal : dict
-        Emitted for each successfully parsed JSON object.
-    data_parse_error_signal : str
-        Emitted for and non-json inputs. (e.g. debug prints from the firmware).
     port_error_signal :
         Emitted when a "SerialException" is encountered during reading.
     """
 
-    data_received_signal = pyqtSignal(dict)
-    data_parse_error_signal = pyqtSignal(str)
     port_error_signal = pyqtSignal()
 
     def __init__(self, serial_port: serial.Serial) -> None:
@@ -309,6 +295,7 @@ class SerialReader(QThread):
         serial_port : serial.Serial
             An open serial port to read from.
         """
+
         super().__init__()
         self._running = True
         self._ser = serial_port
@@ -321,6 +308,7 @@ class SerialReader(QThread):
         for each successfully parsed JSON object. Runs until stop() is
         called or the port closes.
         """
+        
         while self._running and self._ser and self._ser.is_open:
             try:
                 line: str = self._ser.readline().decode("utf-8").strip()
@@ -328,14 +316,15 @@ class SerialReader(QThread):
                     try:
                         data = json.loads(line)
                         if isinstance(data, dict):
-                            self.data_received_signal.emit(data)
+                            # TODO: send to webserver
+                            pass
                         else:
-                            self.data_parse_error_signal.emit(
-                                f"Unexpected JSON type: {line}"
-                            )
+                            # print(f"Unexpected JSON type: {line}")
+                            pass
                     except json.JSONDecodeError:
                         # Non-JSON output from firmware; pass to logger.
-                        self.data_parse_error_signal.emit(line)
+                        # print(f"Non-JSON type: {line}")
+                        pass
             except UnicodeDecodeError as e:
                 print(f"Couldn't decode data: {e}")
             except serial.SerialException as e:
@@ -345,12 +334,16 @@ class SerialReader(QThread):
             self.msleep(10)
 
     def stop(self) -> None:
-        """Signal the thread to stop and block until it exits."""
+        """
+        Signal the thread to stop and block until it exits.
+        """
+
         self._running = False
         self.wait()
 
 
 if __name__ == "__main__":
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
@@ -358,4 +351,3 @@ if __name__ == "__main__":
     window.show()
 
     sys.exit(app.exec_())
-
