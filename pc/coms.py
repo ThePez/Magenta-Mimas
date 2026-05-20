@@ -2,12 +2,10 @@
 start up script
 """
 
-import sys
 import json
 from datetime import datetime
 import serial
 import threading
-from serial.tools import list_ports
 import serial.tools.list_ports
 
 # open coms port on startup
@@ -73,6 +71,7 @@ class SerialReader(threading.Thread):
                 print(f"Couldn't decode data: {e}")
             except serial.SerialException as e:
                 print(f"Serial port disconnected: {e}")
+                Controller._disconnect()
 
             self.msleep(10)
 
@@ -91,7 +90,6 @@ class Controller:
     """
 
     def __init__(self) -> None:
-        super.__init__()
         self._serial_port = None
         self._port = None
         self.serial_thread = None
@@ -124,7 +122,8 @@ class Controller:
         """
 
         try:
-            ser = serial.Serial(self._port, 115200, timeout=0.1)
+            self._serial_port = serial.Serial(self._port, 115200, timeout=0.1)
+            print("Connected!")
 
             # start the background UART listener thread
             self.serial_thread = SerialReader(self._serial_port)
@@ -132,5 +131,23 @@ class Controller:
 
         except serial.SerialException as e:
             print(f"Connection failed: {e}")
+
+    def _disconnect(self) -> None:
+        """
+        Stop the reader thread and close the serial port
+        """
+
+        if self.serial_thread:
+            self.serial_thread.stop()
+            self.serial_thread.wait()
+            self.serial_thread = None
+
+        if self._serial_port and self._serial_port.is_open:
+            self._serial_port.close()
+            print("Disconnected from serial port")
+
+if __name__ == "__main__":
+    controller: Controller = Controller()
+    controller._connect()
 
 
