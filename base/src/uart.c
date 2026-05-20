@@ -56,6 +56,8 @@ RING_BUF_DECLARE(tx_ring_buf, TX_BUF_SIZE);
 // This uses a different UART -> connected to the USB-C
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_shell_uart));
 
+atomic_t is_time_set = ATOMIC_INIT(0);
+
 /* ========================================================================== */
 /* UART Send                                                                  */
 /* Pushes bytes into the TX ring buffer and enables the TX IRQ.               */
@@ -223,6 +225,7 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
                 case 2: {
                     // TIME UPDATE
                     set_absolute_time(cmd.time);
+                    atomic_set(&is_time_set, 1);
                     break;
                 }
                 }

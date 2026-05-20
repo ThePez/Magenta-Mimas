@@ -8,6 +8,7 @@
 #define COMMON_H
 
 #include <stdint.h>
+#include <sys/cdefs.h>
 
 struct bat_packet {
     double bat_mv;
@@ -40,6 +41,11 @@ struct ble_packet {
 enum ble_packet_id {
     SENSOR = 0,
     BATTERY = 1
+};
+
+struct __packed cmd_ble_packet {
+    uint8_t cmd;
+    int64_t time;
 };
 
 #endif
