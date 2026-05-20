@@ -16,19 +16,6 @@ import time
 class SerialReader(threading.Thread):
     """
     Background thread that reads JSON-formatted lines from a serial port.
-    
-    Each valid JSON line is emitted via "data_received_signal". Lines that
-    cannot be decoded as JSON are forwarded to the caller's logger.  A
-    "port_error_signal" is emitted if the port is unexpectedly disconnected.
-
-    Signals
-    -------
-    data_received_signal : dict
-        Emitted for each successfully parsed JSON object.
-    data_parse_error_signal : str
-        Emitted for and non-json inputs. (e.g. debug prints from the firmware).
-    port_error_signal :
-        Emitted when a "SerialException" is encountered during reading.
     """
 
     def __init__(self, serial_port: serial.Serial) -> None:
@@ -61,13 +48,15 @@ class SerialReader(threading.Thread):
                     try:
                         data = json.loads(line)
                         if isinstance(data, dict):
-                            # send to webserver
-                            continue
+                            #TODO: send to webserver
+                            print(data)
                         else:
-                            print(line)
+                            # print(line)
+                            pass
                     except json.JSONDecodeError:
                         # Non-JSON output from firmware
-                        print(line)
+                        # print(line)
+                        pass
             except UnicodeDecodeError as e:
                 print(f"Couldn't decode data: {e}")
             except serial.SerialException as e:
@@ -128,7 +117,6 @@ class Controller:
             # start the background UART listener thread
             self.serial_thread = SerialReader(self._serial_port)
             self.serial_thread.start()
-            print("Connected!")
 
         except serial.SerialException as e:
             print(f"Connection failed: {e}")
@@ -171,14 +159,43 @@ class Controller:
         else:
             print("Serial Port not connected")
 
+    def _update_pulse_delay(self, delay: str) -> None:
+        """
+        Updates sampling time given user input.
+        """
+
+        payload = {
+            "cmd":1,
+            "pulse":int(delay),
+            "time": 0
+        }
+        cmd = json.dumps(payload)
+
+        if self._serial_port and self._serial_port.is_open:
+            try:
+                self._serial_port.write(f"{cmd}\n".encode())
+            except serial.SerialException as e:
+                print(f"Error sending command: {e}")
+        else:
+            print("Serial Port not connected")
+
+
 
 if __name__ == "__main__":
     controller: Controller = Controller()
     controller._get_port()
     controller._connect()
 
-    while (1):
-        controller._send_timestamp()
-        time.sleep(500)
+    previous = datetime.now()
+
+    while True:
+
+        diff = datetime.now() - previous
+        if (diff.total_seconds() == 60):
+            controller._send_timestamp()
+            previous = datetime.now()
+
+        delay = input("Pulse delay: ")
+        controller._update_pulse_delay(delay)
 
 
