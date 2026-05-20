@@ -32,8 +32,10 @@ struct xiao_bat_config {
     const int sampling_time;
 };
 
-static const int32_t battery_voltages[] = {3200, 3500, 3600, 3700, 3750, 3800,
-                                           3850, 3900, 3950, 4000, 4200};
+#define INDEX_TO_CHARGE 5
+static const int32_t battery_voltages[] = {3200, 3250, 3300, 3350, 3400, 3450, 3500,
+                                           3550, 3600, 3650, 3700, 3750, 3800, 3850,
+                                           3900, 3950, 4000, 4050, 4100, 4150, 4200};
 
 static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
 {
@@ -56,6 +58,7 @@ static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
         if (ret < 0) {
             LOG_ERR("Failed to set battery pin for reading");
         }
+
         k_msleep(POST_GPIO_WAIT_MS);
 
         ret = adc_read_dt(&(cfg->adc), &seq);
@@ -69,6 +72,7 @@ static void xiao_bat_sample_thread(void *dataVoid, void *cfgVoid, void *arg3)
         if (ret < 0) {
             LOG_ERR("Failed to set battery pin to disable reading");
         }
+
         k_sleep(K_SECONDS(cfg->sampling_time));
     }
 }
@@ -148,7 +152,7 @@ static int xiao_bat_channel_get(const struct device *dev, enum sensor_channel ch
         }
 
         // Store battery % in val
-        val->val1 = 10 * current_index;
+        val->val1 = INDEX_TO_CHARGE * current_index;
         return (0);
     }
 

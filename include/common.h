@@ -10,7 +10,8 @@
 #include <stdint.h>
 
 struct bat_packet {
-    int32_t bat_charge_pc;
+    double bat_mv;
+    int32_t bat_charge;
 };
 
 struct imu_data {
