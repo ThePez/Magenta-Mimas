@@ -8,10 +8,10 @@ Interactive historical storytelling installation for the Queensland Maritime Mus
 
 ```
 root/
-├── base/           # Central BLE node firmware (Zephyr)
-├── helm/           # Peripheral helm node firmware (Zephyr)
-├── Testing_code/   # Scratch / test firmwares
-└── museum_source/  # Unity project / GUI
+├── base/                    # Central BLE node firmware (Zephyr)
+├── helm/                    # Peripheral helm node firmware (Zephyr)
+├── pc/                      # Python script and runner
+└── MakingWavesVideoPlayer/  # Unity project / GUI
 ```
 
 ---
