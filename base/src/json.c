@@ -44,7 +44,7 @@ int encode_cmd_packet(struct cmd_packet *val, char *buffer, size_t buf_size)
 int decode_cmd_packet(char *input, size_t len, struct cmd_packet *data)
 {
     int ret = json_obj_parse(input, len, cmd_descr, ARRAY_SIZE(cmd_descr), data);
-    return (ret);
+    return (ret < 0) ? (ret) : 0;
 }
 
 /* Encodes a cmd_json struct into a JSON string in the provided buffer. */
@@ -58,5 +58,5 @@ int encode_json_packet(struct json_packet *val, char *buffer, size_t buf_size)
 int decode_json_packet(char *input, size_t len, struct json_packet *data)
 {
     int ret = json_obj_parse(input, len, json_descr, ARRAY_SIZE(json_descr), data);
-    return (ret);
+    return (ret < 0) ? (ret) : 0;
 }
