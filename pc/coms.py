@@ -112,6 +112,9 @@ class Controller(QMainWindow):
 
         main_layout.addWidget(self._main_tabs)
 
+        # We can set this flag to false for the deployment
+        self._send_data_to_server = True
+
     @pyqtSlot()
     def pulse_clicked(self):
         """
@@ -281,7 +284,7 @@ class Controller(QMainWindow):
             self._serial_port = serial.Serial(port, baudrate, timeout=0.1)
 
             # Start the background UART listener thread.
-            self.serial_thread = SerialReader(self._serial_port)
+            self.serial_thread = SerialReader(self._serial_port, self._send_data_to_server)
             self.serial_thread.port_error_signal.connect(self._port_disconnected)
             self.serial_thread.log_signal.connect(self._log)
             self.serial_thread.start()
@@ -366,7 +369,7 @@ class SerialReader(QThread):
     port_error_signal = pyqtSignal()
     log_signal = pyqtSignal(str)
 
-    def __init__(self, serial_port: serial.Serial) -> None:
+    def __init__(self, serial_port: serial.Serial, send_to_server: bool) -> None:
         """
         Initialise the reader thread.
 
@@ -377,6 +380,7 @@ class SerialReader(QThread):
         """
 
         super().__init__()
+        self._send_to_server = send_to_server
         self._running = True
         self._ser = serial_port
 
@@ -395,7 +399,7 @@ class SerialReader(QThread):
                 if line:
                     try:
                         data = json.loads(line)
-                        if isinstance(data, dict):
+                        if isinstance(data, dict) and self._send_to_server:
                             node_a = data["nodeA"]
                             node_b = data["nodeB"]
                             velocity = data["speed"] * data["direction"]
