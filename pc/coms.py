@@ -1,5 +1,5 @@
 """
-start up script
+Start up script
 
 Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
 """
@@ -7,7 +7,6 @@ Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
 import sys
 
 # Fix dropdown boxes not staying open on some Linux desktop environments.
-print(sys.platform.startswith("linux"))
 if sys.platform.startswith("linux"):
     import os
 
@@ -33,8 +32,9 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QTextEdit,
     QTabWidget,
-    QMainWindow
+    QMainWindow,
 )
+
 
 class Controller(QMainWindow):
     """
@@ -103,6 +103,7 @@ class Controller(QMainWindow):
 
         main_layout.addWidget(self._main_tabs)
 
+    @pyqtSlot()
     def pulse_clicked(self):
         """
         Send new sampling time.
@@ -110,6 +111,7 @@ class Controller(QMainWindow):
         selected = self.combo_box.currentText()
         self.update_pulse_delay(int(selected))
 
+    @pyqtSlot()
     def stamp_clicked(self):
         """
         Send timestamp for synchronisation.
@@ -122,17 +124,12 @@ class Controller(QMainWindow):
         Transmit timestamp to base.
         """
 
-        payload = {
-            "cmd":2,
-            "pulse":0,
-            "time": self._current_time.timestamp()
-        }
+        payload = {"cmd": 2, "pulse": 0, "time": int(self._current_time.timestamp())}
         cmd = json.dumps(payload)
 
         if self._serial_port and self._serial_port.is_open:
             try:
                 self._serial_port.write(f"{cmd}\n".encode())
-                self._log(cmd)
             except serial.SerialException as e:
                 self._log(f"Error sending command: {e}")
         else:
@@ -143,17 +140,12 @@ class Controller(QMainWindow):
         Updates sampling time given user input.
         """
 
-        payload = {
-            "cmd":1,
-            "pulse":delay,
-            "time": 0
-        }
+        payload = {"cmd": 1, "pulse": delay, "time": 0}
         cmd = json.dumps(payload)
 
         if self._serial_port and self._serial_port.is_open:
             try:
                 self._serial_port.write(f"{cmd}\n".encode())
-                self._log(cmd)
             except serial.SerialException as e:
                 self._log(f"Error sending command: {e}")
         else:
@@ -296,7 +288,7 @@ class Controller(QMainWindow):
         except serial.SerialException as e:
             QMessageBox.critical(self, "Connection Error", f"Failed to connect: {e}")
 
-    def _disconnect(self, message: str = "Disconnected from serial port") -> None:
+    def _disconnect(self) -> None:
         """
         Stop the reader thread and close the serial port.
         """
@@ -335,7 +327,7 @@ class Controller(QMainWindow):
         QMessageBox.critical(
             self, "Serial Port Error", "Serial port has been disconnected"
         )
-    
+
     def _log(self, message: str) -> None:
         """
         Append a timestamped message to the console log and auto-scroll.
@@ -351,6 +343,7 @@ class Controller(QMainWindow):
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
+
 class SerialReader(QThread):
     """
     Background thread that reads JSON-formatted lines from a serial port.
@@ -362,7 +355,7 @@ class SerialReader(QThread):
     """
 
     port_error_signal = pyqtSignal()
-    log_signal = pyqtSignal()
+    log_signal = pyqtSignal(str)
 
     def __init__(self, serial_port: serial.Serial) -> None:
         """
@@ -386,7 +379,7 @@ class SerialReader(QThread):
         for each successfully parsed JSON object. Runs until stop() is
         called or the port closes.
         """
-        
+
         while self._running and self._ser and self._ser.is_open:
             try:
                 line: str = self._ser.readline().decode("utf-8").strip()
@@ -395,17 +388,14 @@ class SerialReader(QThread):
                         data = json.loads(line)
                         if isinstance(data, dict):
                             # TODO: send to webserver
-                            print(data)
-                        else:
-                            # Pass to logger
-                            self.log_signal.emit()
+                            pass
                     except json.JSONDecodeError:
                         # Non-JSON output from firmware; pass to logger.
-                        self.log_signal.emit()
+                        self.log_signal.emit(line)
             except UnicodeDecodeError as e:
-                print(f"Couldn't decode data: {e}")
+                self.log_signal.emit(f"Couldn't decode data: {e}")
             except serial.SerialException as e:
-                print(f"Serial port disconnected: {e}")
+                self.log_signal.emit(f"Serial port disconnected: {e}")
                 self.port_error_signal.emit()
 
             self.msleep(10)
