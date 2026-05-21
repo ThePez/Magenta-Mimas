@@ -5,6 +5,7 @@
  */
 
 #include "rb_tree.h"
+#include "common.h"
 
 #include "gatt.h"
 
@@ -15,8 +16,8 @@
 #include <zephyr/kernel.h>
 #include "zephyr/sys/printk.h"
 
-#define RB_TREE_STACK    2048
-#define RB_TREE_PRIORITY 6
+#define RB_STACK    2048
+#define RB_PRIORITY 6
 
 static bool helm_lessthan_func(struct rbnode *a, struct rbnode *b);
 
@@ -237,40 +238,10 @@ int insert_rb_node(uint16_t id)
 }
 
 /* ========================================================================== */
-/* Debug                                                                      */
-/* ========================================================================== */
-
-/**
- * @brief Print all helm nodes currently in the tree to the console.
- */
-void print_rb_node(void)
-{
-    if (!initialised) {
-        printk("[WARN] rb_tree not initialised\n");
-        return;
-    }
-
-    if (rb_lock()) {
-        printk("[ERROR] rbTree Mutex unavailable\n");
-        return;
-    }
-
-    struct helm_node *node;
-    RB_FOR_EACH_CONTAINER(&tree, node, rbnode) {
-        printk("[INFO] helm: id=%u | sensor: ts=%lld acc: %lf gyro: %lf"
-               " | status: ts=%lld mv=%f charge=%d\n",
-               node->id, node->sesnor_ts, node->imu_data.accel_ms2, node->imu_data.gyro_rads,
-               node->battery_ts, node->battery_data.bat_mv, node->battery_data.bat_charge);
-    }
-
-    rb_unlock();
-}
-
-/* ========================================================================== */
 /* Red Black Tree Thread                                                      */
 /* ========================================================================== */
 
-void thread_tree(void *arg1, void *arg2, void *arg3)
+void thread_rb(void *arg1, void *arg2, void *arg3)
 {
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
@@ -291,24 +262,14 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
                 rb_lock();
                 node = get_rb_node(packet.node_num);
                 if (node != NULL) {
-                    int64_t current = k_uptime_get();
                     switch (packet.packet_id) {
-                    case SENSOR: {
-                        struct sensor_packet data = packet.data.sensor;
-                        node->imu_data.accel_ms2 = data.imu_data.accel_ms2;
-                        node->imu_data.gyro_rads = data.imu_data.gyro_rads;
-                        node->magnet_dt = data.magnet_dt;
-                        node->sesnor_ts = current;
+                    case SENSOR:
+                        node->imu_data = packet.data.imu;
                         received_mask |= BIT(packet.node_num);
                         break;
-                    }
-                    case BATTERY: {
-                        struct bat_packet data = packet.data.bat;
-                        node->battery_data.bat_charge = data.bat_charge;
-                        node->battery_data.bat_mv = data.bat_mv;
-                        node->battery_ts = current;
+                    case BATTERY:
+                        node->battery_data = packet.data.bat;
                         break;
-                    }
                     }
                 }
 
@@ -321,5 +282,4 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
     }
 }
 
-K_THREAD_DEFINE(rb_tree_thread, RB_TREE_STACK, thread_tree, NULL, NULL, NULL, RB_TREE_PRIORITY, 0,
-                0);
+K_THREAD_DEFINE(rb_thread, RB_STACK, thread_rb, NULL, NULL, NULL, RB_PRIORITY, 0, 0);

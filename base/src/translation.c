@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "common.h"
 #include "translation.h"
 
 #include "ukf.h"
@@ -35,17 +36,13 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
     while (1) {
         // Grab data from kalman
         k_msgq_get(&kalman_msgq, &data, K_FOREVER);
+
         // Translate into keyboard press
-
-        // TODO: UPDATE THE THRESHOLDS
-
         enum hid_kbd_code key = translate_into_button(data.magntidue, data.direction);
         // Pass to HID controller
         if (key != HID_KEY_G) {
             k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
         }
-
-        // SORTING OUT MAGNET
 
         // Only send JSON every 5 seconds -> Build JSON packet for PC script
         int64_t current = k_uptime_get();
@@ -54,26 +51,31 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
         }
 
         prev = current;
+
         // Grab tree stuff
         rb_lock();
 
+        // Helm A
         nodeA = get_rb_node(0);
-        packet.nodeA.mv = nodeA->battery_data.bat_mv;
-        packet.nodeA.charge = nodeA->battery_data.bat_charge;
+        packet.nodeA.bat = nodeA->battery_data;
+        packet.nodeA.imu = nodeA->imu_data;
+        packet.nodeA.id = nodeA->id;
         packet.nodeA.connection_status = nodeA->connection_status;
-        packet.nodeA.magnet_dt = nodeA->magnet_dt;
-
+        // Helm B
         nodeB = get_rb_node(1);
-        packet.nodeB.mv = nodeB->battery_data.bat_mv;
-        packet.nodeB.charge = nodeB->battery_data.bat_charge;
+        packet.nodeB.bat = nodeB->battery_data;
+        packet.nodeB.imu = nodeB->imu_data;
+        packet.nodeB.id = nodeB->id;
         packet.nodeB.connection_status = nodeB->connection_status;
-        packet.nodeB.magnet_dt = nodeB->magnet_dt;
 
         rb_unlock();
 
+        // timestamp the creation of this json_packet
+        packet.time = get_time();
+
         // Fill in remaining items
         packet.direction = data.direction;
-        packet.speed = (uint64_t)(data.magntidue * 1000); // Convert to uint64_t
+        packet.speed = data.magntidue;
         k_msgq_put(&trans_queue, &packet, K_NO_WAIT);
     }
 }

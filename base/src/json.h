@@ -7,21 +7,23 @@
 #ifndef JSON_H
 #define JSON_H
 
+#include "common.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
 
 struct helm_packet {
-    uint64_t magnet_dt;
-    uint8_t charge;
-    int32_t mv;
+    struct imu_data imu;
+    struct bat_packet bat;
     uint8_t connection_status;
+    uint8_t id;
 };
 
 struct json_packet {
+    time_t time;
     struct helm_packet nodeA;
     struct helm_packet nodeB;
-    uint64_t speed;
+    double speed;
     int8_t direction;
 };
 

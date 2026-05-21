@@ -8,6 +8,7 @@
 
 #ifdef UART_USB_C // Disables the file if not found
 
+#include "common.h"
 #include "translation.h"
 #include "json.h"
 #include "ukf.h"
@@ -20,7 +21,9 @@
 
 #include <sys/errno.h>
 #include <string.h>
-#include <time.h>
+
+// Initialised here, extern'ed in common.h
+atomic_t is_time_set = ATOMIC_INIT(0);
 
 /* ========================================================================== */
 /* Configuration                                                              */
@@ -31,8 +34,8 @@
 #define UART_STACK 4096
 
 #define BUFFER_SIZE   256
-#define JSON_BUF_SIZE BUFFER_SIZE
-#define TX_BUF_SIZE   BUFFER_SIZE
+#define JSON_BUF_SIZE (BUFFER_SIZE * 2)
+#define TX_BUF_SIZE   (BUFFER_SIZE * 2)
 #define RX_BUF_SIZE   BUFFER_SIZE
 
 /* ========================================================================== */
@@ -56,8 +59,6 @@ RING_BUF_DECLARE(tx_ring_buf, TX_BUF_SIZE);
 
 // This uses a different UART -> connected to the USB-C
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_shell_uart));
-
-atomic_t is_time_set = ATOMIC_INIT(0);
 
 /* ========================================================================== */
 /* UART Send                                                                  */
@@ -184,18 +185,6 @@ static int uart_interrupt_driver_init(void *user_data)
 }
 
 /* ========================================================================== */
-/* Sets the posix time on the NRF                                             */
-/* ========================================================================== */
-int set_absolute_time(time_t time)
-{
-    struct timespec ts;
-    ts.tv_sec = time;
-    ts.tv_nsec = 0;
-
-    return (clock_settime(CLOCK_REALTIME, &ts));
-}
-
-/* ========================================================================== */
 /* UART Thread                                                                */
 /* ========================================================================== */
 
@@ -215,6 +204,7 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
         /* =============== RX STUFF ================== */
         if (k_msgq_get(&uart_rx_msgq, json_buf, K_NO_WAIT) == 0) {
             if (decode_cmd_packet(json_buf, strlen(json_buf), &cmd) == 0) {
+                printk("[INFO] PC Command %d", cmd.cmd);
                 switch (cmd.cmd) {
                 case 1:
                     // PULSE UPDATE
@@ -223,7 +213,6 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
                 case 2:
                     // TIME UPDATE
                     set_absolute_time(cmd.time);
-                    atomic_set(&is_time_set, 1);
                     break;
                 }
             } else {

@@ -9,7 +9,7 @@
 #include "battery.h"
 #include "gatt.h"
 #include "imu.h"
-#include "magnet.h"
+#include "zephyr/sys/printk.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/crc.h>
@@ -23,6 +23,9 @@
 #elif (NODE_ID == 1)
 #define NODE_NUM 1
 #endif
+
+// Initialied here, extern'ed in common.h
+atomic_t is_time_set = ATOMIC_INIT(0);
 
 /* ========================================================================== */
 /* Static Data                                                                */
@@ -41,37 +44,37 @@ static void send_sensor_thread(void *arg1, void *arg2, void *arg3)
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    int64_t magnet_time_ms = 0;
-    int64_t battery_time_ms = 0;
+    int64_t last_bat_reading = 0;
     double *mv = &bat_packet.data.bat.bat_mv;
     int32_t *charge = &bat_packet.data.bat.bat_charge;
-    uint64_t *magnet_dt = &sensor_packet.data.sensor.magnet_dt;
-    struct imu_data *imu_data = &sensor_packet.data.sensor.imu_data;
+    time_t *bat_ts = &bat_packet.data.bat.timestamp;
+
+    struct imu_data *imu_data = &sensor_packet.data.imu;
 
     while (1) {
         k_sem_take(&notif_sem, K_FOREVER);
 
-        // Collect Hall Effect Data
-        k_msgq_get(&magnet_time_q, &magnet_time_ms, K_NO_WAIT);
-        int64_t current = k_uptime_get();
-
-        // Collect Magnet & IMU Data
-        *magnet_dt = (current - magnet_time_ms);
+        // Collect IMU Data
         k_msgq_get(&imu_q, imu_data, K_NO_WAIT);
         sensor_packet.crc16 = crc16_ansi((char *)&(sensor_packet.data), sizeof(union ble_data));
 
         // Send to Base
+        printk("[INFO] imu time: %lld\n", imu_data->timestamp);
         send_data_nus(&sensor_packet, sizeof(sensor_packet));
 
         // Send Battery Data every BAT_PACKET_PERIOD_MS
-        if ((current - battery_time_ms) < BAT_PACKET_PERIOD_MS) {
+        int64_t now = k_uptime_get();
+        if ((now - last_bat_reading) < BAT_PACKET_PERIOD_MS) {
             continue;
         }
 
         // Collect battery data
-        battery_time_ms = current;
+        last_bat_reading = now;
+        *bat_ts = get_time();
+        printk("[INFO] bat time: %lld\n", *bat_ts);
         get_battery_charge(charge);
         get_battery_voltage(mv);
+
         bat_packet.crc16 = crc16_ansi((char *)&(bat_packet.data), sizeof(union ble_data));
 
         // Send to base

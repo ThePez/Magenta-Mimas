@@ -377,8 +377,8 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         omega = ukf.x[0];
         centripetal = omega * omega * RADIUS;
-        printk("centripetal acceleration: %f\n", centripetal);
-        printk("gyroscope: %f\n", avg_gyro);
+        // printk("centripetal acceleration: %f\n", centripetal);
+        // printk("gyroscope: %f\n", avg_gyro);
 
         /* clockwise is negative, anti-clockwise is positive */
         results.magntidue = centripetal;

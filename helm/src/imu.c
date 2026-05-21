@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "zephyr/kernel.h"
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 
@@ -42,8 +43,11 @@ static void lsm6dsl_trigger_handler(const struct device *dev, const struct senso
     sensor_channel_get(dev, SENSOR_CHAN_ACCEL_X, &accel_x);
     sensor_channel_get(dev, SENSOR_CHAN_GYRO_Z, &gyro_z);
 
+    // Either ms since boot or current internet time
+    int64_t current = get_time();
     struct imu_data data = {.gyro_rads = sensor_value_to_double(&gyro_z),
-                            .accel_ms2 = sensor_value_to_double(&accel_x)};
+                            .accel_ms2 = sensor_value_to_double(&accel_x),
+                            .timestamp = current};
 
     // We are only interested in the last item.
     while (k_msgq_put(&imu_q, &data, K_NO_WAIT) != 0) {

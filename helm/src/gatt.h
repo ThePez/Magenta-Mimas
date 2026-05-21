@@ -22,6 +22,6 @@
 extern struct k_sem notif_sem;
 
 int initialise_helm_gatt(void);
-int send_data_nus(const void* data, uint16_t len);
+int send_data_nus(const void *data, uint16_t len);
 
 #endif
