@@ -4,17 +4,20 @@ start up script
 Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
 """
 
-# Fix dropdown boxes not staying open on some Linux desktop environments.
-import os
+import sys
 
-os.environ["QT_QPA_PLATFORM"] = "xcb"
+# Fix dropdown boxes not staying open on some Linux desktop environments.
+print(sys.platform.startswith("linux"))
+if sys.platform.startswith("linux"):
+    import os
+
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
 import json
 from datetime import datetime
 import serial
 import serial.tools.list_ports
-import sys
 from typing import Optional
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (
