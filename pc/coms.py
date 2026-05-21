@@ -20,6 +20,7 @@ import serial
 import serial.tools.list_ports
 from typing import Optional
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -30,9 +31,12 @@ from PyQt5.QtWidgets import (
     QLabel,
     QGroupBox,
     QHBoxLayout,
+    QTextEdit,
+    QTabWidget,
+    QMainWindow
 )
 
-class Controller(QWidget):
+class Controller(QMainWindow):
     """
     Main application window and central controller.
 
@@ -67,16 +71,37 @@ class Controller(QWidget):
         self.pulse.clicked.connect(self.pulse_clicked)
         self.stamp.clicked.connect(self.stamp_clicked)
 
-        # Layout
-        layout = QVBoxLayout()
-        con = self._create_connection_section()
-        layout.addWidget(con)
-        layout.addWidget(self.label)
-        layout.addWidget(self.combo_box)
-        layout.addWidget(self.pulse)
-        layout.addWidget(self.stamp)
+        central_widget: QWidget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout: QVBoxLayout = QVBoxLayout(central_widget)
 
-        self.setLayout(layout)
+        con: QGroupBox = self._create_connection_section()
+        main_layout.addWidget(con)
+
+        commands_widget: QWidget = QWidget()
+        commands_layout: QVBoxLayout = QVBoxLayout(commands_widget)
+
+        selection_row: QHBoxLayout = QHBoxLayout()
+        selection_row.addWidget(self.label)
+        selection_row.addWidget(self.combo_box)
+        selection_row.addStretch()
+
+        button_row: QHBoxLayout = QHBoxLayout()
+        button_row.addWidget(self.pulse)
+        button_row.addWidget(self.stamp)
+        button_row.addStretch()
+
+        commands_layout.addLayout(selection_row)
+        commands_layout.addLayout(button_row)
+        commands_layout.addStretch()
+
+        self._console_tab: QWidget = self._create_console_tab()
+
+        self._main_tabs: QTabWidget = QTabWidget()
+        self._main_tabs.addTab(commands_widget, "Commands")
+        self._main_tabs.addTab(self._console_tab, "Console")
+
+        main_layout.addWidget(self._main_tabs)
 
     def pulse_clicked(self):
         """
@@ -107,11 +132,11 @@ class Controller(QWidget):
         if self._serial_port and self._serial_port.is_open:
             try:
                 self._serial_port.write(f"{cmd}\n".encode())
-                print(cmd)
+                self._log(cmd)
             except serial.SerialException as e:
-                print(f"Error sending command: {e}")
+                self._log(f"Error sending command: {e}")
         else:
-            print("Serial Port not connected")
+            self._log("Serial Port not connected")
 
     def update_pulse_delay(self, delay: int) -> None:
         """
@@ -128,11 +153,34 @@ class Controller(QWidget):
         if self._serial_port and self._serial_port.is_open:
             try:
                 self._serial_port.write(f"{cmd}\n".encode())
-                print(cmd)
+                self._log(cmd)
             except serial.SerialException as e:
-                print(f"Error sending command: {e}")
+                self._log(f"Error sending command: {e}")
         else:
-            print("Serial Port not connected")
+            self._log("Serial Port not connected")
+
+    def _create_console_tab(self) -> QWidget:
+        """
+        Build the console log tab.
+
+        Returns
+        -------
+        QWidget
+            Tab widget containing a read-only log area and a clear button.
+        """
+        widget: QWidget = QWidget()
+        layout: QVBoxLayout = QVBoxLayout(widget)
+
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setFont(QFont("Courier", 11))
+        layout.addWidget(self.log_text)
+
+        clear_btn: QPushButton = QPushButton("Clear Log")
+        clear_btn.clicked.connect(lambda: self.log_text.clear())
+        layout.addWidget(clear_btn)
+
+        return widget
 
     def _create_connection_section(self) -> QGroupBox:
         """
@@ -172,7 +220,7 @@ class Controller(QWidget):
         layout.addStretch()
         group.setLayout(layout)
         return group
-    
+
     @pyqtSlot()
     def _refresh_ports(self) -> None:
         """
@@ -234,6 +282,7 @@ class Controller(QWidget):
             # Start the background UART listener thread.
             self.serial_thread = SerialReader(self._serial_port)
             self.serial_thread.port_error_signal.connect(self._port_disconnected)
+            self.serial_thread.log_signal.connect(self._log)
             self.serial_thread.start()
 
             # Update connection UI to reflect the connected state.
@@ -286,6 +335,21 @@ class Controller(QWidget):
         QMessageBox.critical(
             self, "Serial Port Error", "Serial port has been disconnected"
         )
+    
+    def _log(self, message: str) -> None:
+        """
+        Append a timestamped message to the console log and auto-scroll.
+        Parameters
+        ----------
+        message : str
+            The message to display in the console log.
+        """
+        timestamp: str = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        self.log_text.append(f"[{timestamp}] {message}")
+
+        # Keep the most recent entry visible.
+        scrollbar = self.log_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
 class SerialReader(QThread):
     """
@@ -298,6 +362,7 @@ class SerialReader(QThread):
     """
 
     port_error_signal = pyqtSignal()
+    log_signal = pyqtSignal()
 
     def __init__(self, serial_port: serial.Serial) -> None:
         """
@@ -332,12 +397,11 @@ class SerialReader(QThread):
                             # TODO: send to webserver
                             print(data)
                         else:
-                            # print(f"Unexpected JSON type: {line}")
-                            pass
+                            # Pass to logger
+                            self.log_signal.emit()
                     except json.JSONDecodeError:
                         # Non-JSON output from firmware; pass to logger.
-                        # print(f"Non-JSON type: {line}")
-                        pass
+                        self.log_signal.emit()
             except UnicodeDecodeError as e:
                 print(f"Couldn't decode data: {e}")
             except serial.SerialException as e:
