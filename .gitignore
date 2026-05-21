@@ -254,3 +254,6 @@ MakingWavesVideoPlayer/.vscode/
 # Auto-generated cache in Assets folder
 **/[Aa]ssets/[Ss]ceneDependencyCache*
 **/com.unity.inputsystem
+
+pc/test.py
+pc/example.txt

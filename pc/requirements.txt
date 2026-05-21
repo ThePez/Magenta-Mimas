@@ -1,0 +1,4 @@
+influxdb_client==1.50.0
+PyQt5==5.15.11
+pyqt5_sip==12.18.0
+pyserial==3.5

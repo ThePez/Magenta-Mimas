@@ -12,11 +12,11 @@ if sys.platform.startswith("linux"):
 
     os.environ["QT_QPA_PLATFORM"] = "xcb"
 
-
 import json
 from datetime import datetime
 import serial
 import serial.tools.list_ports
+
 from typing import Optional
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont
@@ -35,6 +35,15 @@ from PyQt5.QtWidgets import (
     QMainWindow,
 )
 
+from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import ASYNCHRONOUS
+
+influx_bucket = "magenta-mimas"
+influx_org = "Magenta-Mimas"
+influx_token = "Lu4DEFL8LTYn_gDsVFaxQcatzz85YNx7nPHZXNwbkrpFKWaGhOjdVIOy6TkAxKAPmo_0UG6KuiJCapZsN1IPvA=="
+influx_url = "https://us-east-1-1.aws.cloud2.influxdata.com/"
+influx_client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
+write_api = influx_client.write_api(write_options=ASYNCHRONOUS)
 
 class Controller(QMainWindow):
     """
@@ -54,7 +63,7 @@ class Controller(QMainWindow):
         self._serial_port = None
         self.serial_thread = None
 
-        self.setWindowTitle("COMS4011 -- Magenta Mimas")
+        self.setWindowTitle("CSSE4011 -- Magenta Mimas")
         self.setGeometry(100, 100, 300, 200)
 
         # Create widgets
@@ -387,8 +396,32 @@ class SerialReader(QThread):
                     try:
                         data = json.loads(line)
                         if isinstance(data, dict):
-                            # TODO: send to webserver
-                            pass
+                            node_a = data["nodeA"]
+                            node_b = data["nodeB"]
+                            velocity = data["speed"] * data["direction"]
+
+                            node_a_p = (Point("nodes")
+                                        .tag("location", "node_a")
+                                        .field("conn", node_a["connection_status"])
+                                        .field("chg", node_a["charge"])
+                                        .field("mv", node_a["mv"]))
+                            node_b_p = (Point("nodes")
+                                        .tag("location", "node_b")
+                                        .field("conn", node_b["connection_status"])
+                                        .field("chg", node_b["charge"])
+                                        .field("mv", node_b["mv"]))
+                            helm_p = (Point("helm")
+                                      .tag("location", "helm")
+                                      .field("velocity", velocity))
+                            records = [node_a_p, node_b_p, helm_p]
+
+                            write_api.write(
+                                    bucket=influx_bucket, 
+                                    org=influx_org, 
+                                    record=records, 
+                                    write_precision=WritePrecision.S
+                            )
+
                     except json.JSONDecodeError:
                         # Non-JSON output from firmware; pass to logger.
                         self.log_signal.emit(line)
