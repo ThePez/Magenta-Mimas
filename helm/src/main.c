@@ -27,6 +27,14 @@ int main(void)
     }
 
     printk("[INFO] Mobile node initialization complete\n");
+
+    while (1) {
+        k_sleep(K_SECONDS(30));
+        if (!am_i_connected()) {
+            goto reboot;
+        }
+    }
+    
     return (0);
 
 reboot:

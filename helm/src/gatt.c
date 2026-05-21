@@ -254,6 +254,11 @@ int initialise_helm_gatt(void)
     return 0;
 }
 
+uint8_t am_i_connected(void)
+{
+    return current_conn != NULL;
+}
+
 int send_data_nus(const void *data, uint16_t len)
 {
     if (current_conn == NULL) {
