@@ -59,7 +59,7 @@ static void send_sensor_thread(void *arg1, void *arg2, void *arg3)
         sensor_packet.crc16 = crc16_ansi((char *)&(sensor_packet.data), sizeof(union ble_data));
 
         // Send to Base
-        printk("[INFO] imu time: %lld\n", imu_data->timestamp);
+        // printk("[INFO] imu time: %lld\n", imu_data->timestamp);
         send_data_nus(&sensor_packet, sizeof(sensor_packet));
 
         // Send Battery Data every BAT_PACKET_PERIOD_MS
@@ -71,7 +71,7 @@ static void send_sensor_thread(void *arg1, void *arg2, void *arg3)
         // Collect battery data
         last_bat_reading = now;
         *bat_ts = get_time();
-        printk("[INFO] bat time: %lld\n", *bat_ts);
+        // printk("[INFO] bat time: %lld\n", *bat_ts);
         get_battery_charge(charge);
         get_battery_voltage(mv);
 
