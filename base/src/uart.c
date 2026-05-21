@@ -26,6 +26,7 @@
 /* Configuration                                                              */
 /* ========================================================================== */
 
+#define UART_DELAY 20 // ms
 #define UART_PRIO  6
 #define UART_STACK 4096
 
@@ -182,6 +183,9 @@ static int uart_interrupt_driver_init(void *user_data)
     return (0);
 }
 
+/* ========================================================================== */
+/* Sets the posix time on the NRF                                             */
+/* ========================================================================== */
 int set_absolute_time(time_t time)
 {
     struct timespec ts;
@@ -193,10 +197,6 @@ int set_absolute_time(time_t time)
 
 /* ========================================================================== */
 /* UART Thread                                                                */
-/* Decodes incoming JSON command strings from the GUI and dispatches them     */
-/* via shell_dispatch(). In STANDARD mode, encodes position updates from      */
-/* localisation and sends to the GUI. In LISTEN mode, encodes raw iBeacon     */
-/* packets and sends them instead.                                            */
 /* ========================================================================== */
 
 static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
@@ -210,37 +210,31 @@ static void uart_thread_entry(void *arg1, void *arg2, void *arg3)
     struct json_packet packet = {0};
     struct cmd_packet cmd = {0};
     while (1) {
-        k_msleep(25);
+        k_msleep(UART_DELAY);
 
         /* =============== RX STUFF ================== */
-
         if (k_msgq_get(&uart_rx_msgq, json_buf, K_NO_WAIT) == 0) {
             if (decode_cmd_packet(json_buf, strlen(json_buf), &cmd) == 0) {
                 switch (cmd.cmd) {
-                case 1: {
+                case 1:
                     // PULSE UPDATE
                     PULSE_DELAY = cmd.pulse;
                     break;
-                }
-                case 2: {
+                case 2:
                     // TIME UPDATE
                     set_absolute_time(cmd.time);
                     atomic_set(&is_time_set, 1);
                     break;
                 }
-                }
+            } else {
+                printk("[WARN] JSON decode failed\n");
             }
         }
 
         /* =============== TX STUFF ================== */
-
-        // Grab data from translation
         if (k_msgq_get(&trans_queue, &packet, K_NO_WAIT) == 0) {
-
-            // Clear old data and encode buffer
             memset(json_buf, 0, sizeof(json_buf));
             encode_json_packet(&packet, json_buf, sizeof(json_buf));
-            // Send it
             print_uart(json_buf);
             print_uart("\r\n");
         }

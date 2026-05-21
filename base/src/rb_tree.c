@@ -15,6 +15,9 @@
 #include <zephyr/kernel.h>
 #include "zephyr/sys/printk.h"
 
+#define RB_TREE_STACK    2048
+#define RB_TREE_PRIORITY 6
+
 static bool helm_lessthan_func(struct rbnode *a, struct rbnode *b);
 
 /* ========================================================================== */
@@ -33,6 +36,8 @@ K_SEM_DEFINE(rb_semaphore, 0, 1);
 
 // Sensor Semaphore
 K_SEM_DEFINE(sensor_semaphore, 0, 1);
+
+#define RECEIVED_MASK 0x03
 
 struct helm_node helm_list[NUM_HELMS] = {
     [0] = {.id = 0},
@@ -281,7 +286,7 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
     while (1) {
         uint8_t received_mask = 0;
         // Drain all packets from the queue until a sensor packet from both nodes has been received
-        while (received_mask != 0x03) {
+        while (received_mask != RECEIVED_MASK) {
             if (k_msgq_get(&gatt_msg_queue, &packet, K_FOREVER) == 0) {
                 rb_lock();
                 node = get_rb_node(packet.node_num);
@@ -302,7 +307,6 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
                         node->battery_data.bat_charge = data.bat_charge;
                         node->battery_data.bat_mv = data.bat_mv;
                         node->battery_ts = current;
-                        // printk("Battery Packet: %d%%, %fmv\n", data.bat_charge, data.bat_mv);
                         break;
                     }
                     }
@@ -317,4 +321,5 @@ void thread_tree(void *arg1, void *arg2, void *arg3)
     }
 }
 
-K_THREAD_DEFINE(rb_tree_thread, 2048, thread_tree, NULL, NULL, NULL, 6, 0, 0);
+K_THREAD_DEFINE(rb_tree_thread, RB_TREE_STACK, thread_tree, NULL, NULL, NULL, RB_TREE_PRIORITY, 0,
+                0);
