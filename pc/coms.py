@@ -45,6 +45,7 @@ influx_url = "https://us-east-1-1.aws.cloud2.influxdata.com/"
 influx_client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
 write_api = influx_client.write_api(write_options=ASYNCHRONOUS)
 
+
 class Controller(QMainWindow):
     """
     Main application window and central controller.
@@ -284,7 +285,9 @@ class Controller(QMainWindow):
             self._serial_port = serial.Serial(port, baudrate, timeout=0.1)
 
             # Start the background UART listener thread.
-            self.serial_thread = SerialReader(self._serial_port, self._send_data_to_server)
+            self.serial_thread = SerialReader(
+                self._serial_port, self._send_data_to_server
+            )
             self.serial_thread.port_error_signal.connect(self._port_disconnected)
             self.serial_thread.log_signal.connect(self._log)
             self.serial_thread.start()
@@ -335,11 +338,12 @@ class Controller(QMainWindow):
         connection state and informs the user.
         """
 
-        self._disconnect("Unexpected disconnection from serial port")
+        self._disconnect()
         QMessageBox.critical(
             self, "Serial Port Error", "Serial port has been disconnected"
         )
 
+    @pyqtSlot(str)
     def _log(self, message: str) -> None:
         """
         Append a timestamped message to the console log and auto-scroll.
@@ -399,32 +403,40 @@ class SerialReader(QThread):
                 if line:
                     try:
                         data = json.loads(line)
+                        self.log_signal.emit(str(data))
                         if isinstance(data, dict) and self._send_to_server:
-                            node_a = data["nodeA"]
-                            node_b = data["nodeB"]
-                            velocity = data["speed"] * data["direction"]
+                            # node_a = data["nodeA"]
+                            # node_b = data["nodeB"]
+                            # velocity = data["speed"] * data["direction"]
 
-                            node_a_p = (Point("nodes")
-                                        .tag("location", "node_a")
-                                        .field("conn", node_a["connection_status"])
-                                        .field("chg", node_a["charge"])
-                                        .field("mv", node_a["mv"]))
-                            node_b_p = (Point("nodes")
-                                        .tag("location", "node_b")
-                                        .field("conn", node_b["connection_status"])
-                                        .field("chg", node_b["charge"])
-                                        .field("mv", node_b["mv"]))
-                            helm_p = (Point("helm")
-                                      .tag("location", "helm")
-                                      .field("velocity", velocity))
-                            records = [node_a_p, node_b_p, helm_p]
+                            # node_a_p = (
+                            #     Point("nodes")
+                            #     .tag("location", "node_a")
+                            #     .field("conn", node_a["connection_status"])
+                            #     .field("chg", node_a["charge"])
+                            #     .field("mv", node_a["mv"])
+                            # )
+                            # node_b_p = (
+                            #     Point("nodes")
+                            #     .tag("location", "node_b")
+                            #     .field("conn", node_b["connection_status"])
+                            #     .field("chg", node_b["charge"])
+                            #     .field("mv", node_b["mv"])
+                            # )
+                            # helm_p = (
+                            #     Point("helm")
+                            #     .tag("location", "helm")
+                            #     .field("velocity", velocity)
+                            # )
+                            # records = [node_a_p, node_b_p, helm_p]
 
-                            write_api.write(
-                                    bucket=influx_bucket, 
-                                    org=influx_org, 
-                                    record=records, 
-                                    write_precision=WritePrecision.S
-                            )
+                            # write_api.write(
+                            #     bucket=influx_bucket,
+                            #     org=influx_org,
+                            #     record=records,
+                            #     write_precision=WritePrecision.S,
+                            # )
+                            pass
 
                     except json.JSONDecodeError:
                         # Non-JSON output from firmware; pass to logger.
