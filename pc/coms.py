@@ -4,6 +4,12 @@ start up script
 Copyright (c) 2026 Jack Cairns, Eden Mehr, Muhammed Abdilrahmin
 """
 
+# Fix dropdown boxes not staying open on some Linux desktop environments.
+import os
+
+os.environ["QT_QPA_PLATFORM"] = "xcb"
+
+
 import json
 from datetime import datetime
 import serial
