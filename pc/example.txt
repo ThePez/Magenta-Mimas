@@ -1,0 +1,33 @@
+{
+    "time": 1779379640, 
+    "nodeA": {
+        "imu": {
+            "timestamp": 1779379639, 
+            "gyro_rads": -14, 
+            "accel_ms2": 8037
+        }, 
+        "bat": {
+            "timestamp": 1779379635, 
+            "bat_mv": 3997, 
+            "bat_charge": 80
+        }, 
+        "connection_status": 1, 
+        "id": 0
+    }, 
+    "nodeB": {
+        "imu": {
+            "timestamp": 1779379640, 
+            "gyro_rads": -12, 
+            "accel_ms2": -8248
+        }, 
+        "bat": {
+            "timestamp": 1779379634, 
+            "bat_mv": 4017, 
+            "bat_charge": 85
+        }, 
+        "connection_status": 1, 
+        "id": 1
+    }, 
+    "speed": 1245, 
+    "direction": -1
+}
