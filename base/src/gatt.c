@@ -72,7 +72,7 @@ struct conn_state {
     struct bt_gatt_write_params write_params;
 
     /* Atomic flag for closing ble connection intentionally */
-    atomic_t intentional_disconnect;
+    atomic_t nus_sub;
 };
 
 /* ========================================================================== */
@@ -80,11 +80,11 @@ struct conn_state {
 /* ========================================================================== */
 
 static struct conn_state connections[NUM_CONNECTIONS] = {
-    [0] = {.intentional_disconnect = ATOMIC_INIT(0)},
-    [1] = {.intentional_disconnect = ATOMIC_INIT(0)},
+    [0] = {.nus_sub = ATOMIC_INIT(0)},
+    [1] = {.nus_sub = ATOMIC_INIT(0)},
 };
 
-ATOMIC_DEFINE(gatt_connected, 2);
+// ATOMIC_DEFINE(gatt_connected, 2);
 
 K_MSGQ_DEFINE(gatt_msg_queue, sizeof(struct ble_packet), 8, 4);
 
@@ -180,11 +180,7 @@ static int send_to_peripheral(int slot, uint8_t *data, uint16_t len)
     }
 
     struct conn_state *cs = &connections[slot];
-    if (!cs->conn || !cs->nus_rx_handle) {
-        return (-ENOTCONN);
-    }
-
-    if (!atomic_test_bit(gatt_connected, slot)) {
+    if ((cs->conn == NULL) || !cs->nus_rx_handle || !atomic_get((&cs->nus_sub))) {
         return (-ENOTCONN);
     }
 
@@ -303,8 +299,8 @@ void set_discover_nus_rx(struct conn_state *cs, const struct bt_gatt_attr *attr)
         close_connection(find_slot_by_con(cs->conn));
     }
 
-    uint8_t slot = find_slot_by_con(cs->conn);
-    atomic_set_bit(gatt_connected, slot);
+    // GATT process complete
+    atomic_set(&cs->nus_sub, 1);
 }
 
 /* ========================================================================== */
@@ -489,6 +485,13 @@ static void mtu_exchange_cb(struct bt_conn *conn, uint8_t err,
         printk("[INFO] MTU exchange successful: ATT MTU %u, payload %u bytes",
                bt_gatt_get_mtu(conn), payload_mtu);
     }
+
+    /* Start GATT discovery only after MTU exchange completes (success or fail).
+     * Both ops use the ATT channel — starting them concurrently causes -ENOMEM. */
+    int slot = find_slot_by_con(conn);
+    if (slot >= 0 && connections[slot].conn) {
+        set_discover_nus_service(&connections[slot]);
+    }
 }
 
 static struct bt_gatt_exchange_params mtu_exchange_params[NUM_CONNECTIONS] = {
@@ -538,8 +541,7 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
         printk("[ERROR] MTU exchange request failed (err %d)", err);
     }
 
-    /* kick off STEP 3 */
-    set_discover_nus_service(&connections[slot]);
+    /* STEP 3 is kicked off from mtu_exchange_cb once the ATT channel is free */
     if (find_first_free_slot() >= 0) {
         if (start_scan() < 0) {
             printk("[ERROR] Failed to resume scanning after partial connect\n");
@@ -563,10 +565,12 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
         return;
     }
 
-    atomic_clear_bit(gatt_connected, slot);
-    bt_conn_unref(connections[slot].conn);
-    connections[slot].conn = NULL;
-    connections[slot].nus_rx_handle = 0;
+    struct conn_state *cs = &connections[slot];
+
+    bt_conn_unref(cs->conn);
+    atomic_clear(&cs->nus_sub);
+    cs->conn = NULL;
+    cs->nus_rx_handle = 0;
 
     rb_lock();
     struct helm_node *node = get_rb_node(slot);
@@ -576,13 +580,6 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
     rb_unlock();
 
-    if (atomic_get(&connections[slot].intentional_disconnect)) {
-        atomic_clear(&connections[slot].intentional_disconnect);
-        printk("[WARN] Intentional disconnect, not reconnecting.\n");
-        return;
-    }
-
-    /* Restart advertising so we can reconnect */
     k_work_submit(&adv_restart_work);
 }
 
@@ -612,12 +609,10 @@ static int close_connection(int slot)
         return (0);
     }
 
-    atomic_clear(&connections[slot].intentional_disconnect);
     bt_gatt_unsubscribe(connections[slot].conn, &connections[slot].subscribe_params);
     int err = bt_conn_disconnect(connections[slot].conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
     if (err) {
         printk("[ERROR] Disconnect failed (err %d)", err);
-        atomic_clear(&connections[slot].intentional_disconnect);
         return (err);
     }
 
