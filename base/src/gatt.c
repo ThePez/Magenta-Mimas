@@ -221,7 +221,7 @@ void set_discover_nus_service(struct conn_state *cs)
 
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
-        printk("[ERROR] Discover failed (err %d)\n", err);
+        printk("[ERROR] Discover S3 failed (err %d)\n", err);
         close_connection(find_slot_by_con(cs->conn));
     }
 }
@@ -240,7 +240,7 @@ void set_discover_nus_tx(struct conn_state *cs, const struct bt_gatt_attr *attr)
 
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
-        printk("[ERROR] Discover failed (err %d)\n", err);
+        printk("[ERROR] Discover S4 failed (err %d)\n", err);
         close_connection(find_slot_by_con(cs->conn));
     }
 }
@@ -264,7 +264,7 @@ void set_discover_uuid_gatt_ccc(struct conn_state *cs, const struct bt_gatt_attr
 
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
-        printk("[ERROR] Discover failed (err %d)\n", err);
+        printk("[ERROR] Discover S5 failed (err %d)\n", err);
         close_connection(find_slot_by_con(cs->conn));
     }
 }
@@ -284,7 +284,7 @@ void set_discover_nus_rx(struct conn_state *cs, const struct bt_gatt_attr *attr)
 
     int err = bt_gatt_discover(cs->conn, &cs->discover_params);
     if (err) {
-        printk("[ERROR] Discover failed (err %d)\n", err);
+        printk("[ERROR] Discover S7 failed (err %d)\n", err);
         close_connection(find_slot_by_con(cs->conn));
     }
 }
@@ -304,7 +304,7 @@ void set_discover_nus_sub(struct conn_state *cs, const struct bt_gatt_attr *attr
 
     int err = bt_gatt_subscribe(cs->conn, &cs->subscribe_params);
     if (err && err != -EALREADY) {
-        printk("[ERROR] Subscribe failed (err %d)\n", err);
+        printk("[ERROR] Subscribe S6 failed (err %d)\n", err);
         close_connection(find_slot_by_con(cs->conn));
         return;
     } else {
