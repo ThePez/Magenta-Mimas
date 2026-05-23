@@ -388,76 +388,37 @@ class SerialReader(QThread):
         self._running = True
         self._ser = serial_port
 
-    def dashboard_data(data: dict) -> None:
-        timestamp = data["timestamp"]
-
-        node_a = data["nodeA"]
-        node_a_bat = node_a["bat"]
-        node_a_timestamp = node_a_bat["timestamp"]
-
-        node_b = data["nodeB"]
-        node_b_bat = node_b["bat"]
-        node_b_timestamp = node_b_bat["timestamp"]
-
+    def dashboard_data(self, data: dict) -> None:
         velocity = data["speed"] * data["direction"] / 1000 # This one is in mRad/s
 
-        THRESHOLD = 1767225600
+        conn = [
+            (Point("node_conn")
+            .tag("location", "node_a")
+            .field("conn", data["nodeA"]["connection_status"])),
 
-        records = []
+            (Point("node_conn")
+            .tag("location", "node_b")
+            .field("conn", data["nodeB"]["connection_status"]))
+        ]
 
-        if timestamp < THRESHOLD:
-            node_a_conn_p = (
-                Point("nodes")
-                .tag("location", "node_a")
-                .field("conn", node_a["connection_status"])
-                .time(timestamp)
-            )
+        bat = [
+            (Point("node_bat")
+            .tag("location", "node_a")
+            .field("mv", data["nodeA"]["bat"]["bat_mv"])
+            .field("chg", data["nodeA"]["bat"]["bat_charge"])),
 
-            node_b_conn_p = (
-                Point("nodes")
-                .tag("location", "node_b")
-                .field("conn", node_b["connection_status"])
-                .time(timestamp)
-            )
+            (Point("node_bat")
+            .tag("location", "node_b")
+            .field("mv", data["nodeB"]["bat"]["bat_mv"])
+            .field("chg", data["nodeB"]["bat"]["bat_charge"]))
+        ] 
 
-            helm_p = (
-                Point("helm")
-                .tag("location", "helm")
-                .field("velocity", velocity)
-                .time(timestamp)
-            )
 
-            records.extend([node_a_conn_p, node_b_conn_p, helm_p])
+        helm = Point("helm").tag("location", "helm").field("velocity", velocity)
 
-        if node_a_timestamp < THRESHOLD:
-            node_a_bat_p = (
-                Point("nodes")
-                .tag("location", "node_a")
-                .field("mv", node_a_bat["bat_mv"])
-                .field("chg", node_a_bat["bat_charge"])
-                .time(node_a_timestamp)
-            )
-
-            records.append(node_a_bat_p)
-
-        if node_b_timestamp < THRESHOLD:
-            node_b_bat_p = (
-                Point("nodes")
-                .tag("location", "node_b")
-                .field("mv", node_b_bat["bat_mv"])
-                .field("chg", node_b_bat["bat_charge"])
-                .time(node_b_timestamp)
-            )
-
-            records.append(node_b_bat_p)
-
-        if len(records) > 0:
-            write_api.write(
-                bucket=influx_bucket,
-                org=influx_org,
-                record=records,
-                write_precision=WritePrecision.S,
-            )
+        write_api.write(bucket=influx_bucket, org=influx_org, record=conn, write_precision=WritePrecision.S)
+        write_api.write(bucket=influx_bucket, org=influx_org, record=bat, write_precision=WritePrecision.S)
+        write_api.write(bucket=influx_bucket, org=influx_org, record=helm, write_precision=WritePrecision.S)
 
     def run(self) -> None:
         """
@@ -476,7 +437,7 @@ class SerialReader(QThread):
                         data = json.loads(line)
                         self.log_signal.emit(str(data))
                         if isinstance(data, dict) and self._send_to_server:
-                            dashboard_data(data)
+                            self.dashboard_data(data)
                     except json.JSONDecodeError:
                         # Non-JSON output from firmware; pass to logger.
                         self.log_signal.emit(line)
