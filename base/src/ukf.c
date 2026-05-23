@@ -299,7 +299,7 @@ uint8_t gyro_moving_average(struct gyro_ring *buf)
         sum += fabs(buf->val[i]);
     }
 
-    return (sum < 0.1);
+    return (sum < 0.2);
 }
 
 void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
@@ -321,7 +321,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     struct kalman results;
 
     struct gyro_ring buf = {.val = {0}, .head = 0, .count = 0};
-
     ukf_init(&ukf);
 
     while (1) {
@@ -371,7 +370,7 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         omega = ukf.x[0];
 
         /* clockwise is negative, anti-clockwise is positive */
-        results.magntidue = (omega * omega * RADIUS) - (BASE_CASE * BASE_CASE * RADIUS);
+        results.magntidue = (omega * omega * RADIUS);
 
         printk("omega: %f\n", omega);
         printk("sending: %f\n", results.magntidue);
