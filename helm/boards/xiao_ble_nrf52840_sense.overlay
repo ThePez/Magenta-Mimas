@@ -10,16 +10,7 @@
 		read-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 	};
 
-	gpio_input {
-		compatible = "gpio-leds";
-		magnet_pin: magnet_pin {
-			gpios = <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;  /* D0 */
-			label = "Magnetic sensor pin (HE/reed)";
-		};
-	};
-
 	aliases {
-		magnet-pin = &magnet_pin;
 		xiao-bat = &xiao_bat;
 	};
 };

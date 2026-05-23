@@ -361,7 +361,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         }
 
         if (gyro_moving_average(&buf)) {
-            // ukf.x[0] = BASE_CASE;
             ukf_init(&ukf);
             initialised = false;
         }

@@ -465,30 +465,31 @@ static void update_data_length(struct bt_conn *conn)
 
     err = bt_conn_le_data_len_update(conn, &dl_param);
     if (err) {
-        printk("[ERROR] Data length update failed (err %d)", err);
+        printk("[ERROR] Data length update failed (err %d)\n", err);
     }
 }
 
 static void on_le_data_len_updated(struct bt_conn *conn, struct bt_conn_le_data_len_info *info)
 {
-    printk("[INFO] Data length updated: TX %u bytes (%u us), RX %u bytes (%u us)", info->tx_max_len,
-           info->tx_max_time, info->rx_max_len, info->rx_max_time);
+    printk("[INFO] Data length updated: TX %u bytes (%u us), RX %u bytes (%u us)\n",
+           info->tx_max_len, info->tx_max_time, info->rx_max_len, info->rx_max_time);
 }
 
 static void mtu_exchange_cb(struct bt_conn *conn, uint8_t err,
                             struct bt_gatt_exchange_params *params)
 {
+    int slot = find_slot_by_con(conn);
     if (err) {
-        printk("[ERROR] MTU exchange failed (err %u)", err);
-    } else {
-        uint16_t payload_mtu = bt_gatt_get_mtu(conn) - 3;
-        printk("[INFO] MTU exchange successful: ATT MTU %u, payload %u bytes",
-               bt_gatt_get_mtu(conn), payload_mtu);
+        printk("[ERROR] MTU exchange failed (err %u)\n", err);
+        close_connection(slot);
+        return;
     }
 
-    /* Start GATT discovery only after MTU exchange completes (success or fail).
-     * Both ops use the ATT channel — starting them concurrently causes -ENOMEM. */
-    int slot = find_slot_by_con(conn);
+    uint16_t payload_mtu = bt_gatt_get_mtu(conn) - 3;
+    printk("[INFO] MTU exchange successful: ATT MTU %u, payload %u bytes\n", bt_gatt_get_mtu(conn),
+           payload_mtu);
+
+    /* Start GATT discovery only after MTU exchange completes */
     if (slot >= 0 && connections[slot].conn) {
         set_discover_nus_service(&connections[slot]);
     }
@@ -538,7 +539,7 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
     // Request MTU exchange (GATT payload size)
     int err = bt_gatt_exchange_mtu(conn, &mtu_exchange_params[slot]);
     if (err) {
-        printk("[ERROR] MTU exchange request failed (err %d)", err);
+        printk("[ERROR] MTU exchange request failed (err %d)\n", err);
     }
 
     /* STEP 3 is kicked off from mtu_exchange_cb once the ATT channel is free */
@@ -565,8 +566,8 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
         return;
     }
 
+    /* Close out all the old connection state data */
     struct conn_state *cs = &connections[slot];
-
     bt_conn_unref(cs->conn);
     atomic_clear(&cs->nus_sub);
     cs->conn = NULL;
@@ -612,7 +613,7 @@ static int close_connection(int slot)
     bt_gatt_unsubscribe(connections[slot].conn, &connections[slot].subscribe_params);
     int err = bt_conn_disconnect(connections[slot].conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
     if (err) {
-        printk("[ERROR] Disconnect failed (err %d)", err);
+        printk("[ERROR] Disconnect failed (err %d)\n", err);
         return (err);
     }
 
@@ -664,7 +665,7 @@ int initialise_base_gatt(void)
 
     k_work_init(&adv_restart_work, adv_restart);
 
-    printk("[INFO] Bluetooth initialized\r\n");
+    printk("[INFO] Bluetooth initialized\n");
 
     err = start_scan(); /* STEP 1 for GATT process */
     if (err < 0) {
