@@ -11,7 +11,6 @@
 #include "rb_tree.h"
 
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <sys/errno.h>
@@ -34,6 +33,12 @@ static int start_scan(void);
 static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                              struct bt_gatt_discover_params *params);
 static int close_connection(int slot);
+
+/* ========================================================================== */
+/* Workqueues for timeout/readvertising                                       */
+/* ========================================================================== */
+
+static struct k_work adv_restart_work;
 
 /* ========================================================================== */
 /* Per-Connection State                                                       */
@@ -78,6 +83,8 @@ static struct conn_state connections[NUM_CONNECTIONS] = {
     [0] = {.intentional_disconnect = ATOMIC_INIT(0)},
     [1] = {.intentional_disconnect = ATOMIC_INIT(0)},
 };
+
+ATOMIC_DEFINE(gatt_connected, 2);
 
 K_MSGQ_DEFINE(gatt_msg_queue, sizeof(struct ble_packet), 8, 4);
 
@@ -168,8 +175,16 @@ static void write_cb(struct bt_conn *conn, uint8_t err, struct bt_gatt_write_par
 /* ========================================================================== */
 static int send_to_peripheral(int slot, uint8_t *data, uint16_t len)
 {
+    if (slot < 0 || slot >= NUM_CONNECTIONS) {
+        return (-ENOMEM);
+    }
+
     struct conn_state *cs = &connections[slot];
     if (!cs->conn || !cs->nus_rx_handle) {
+        return (-ENOTCONN);
+    }
+
+    if (!atomic_test_bit(gatt_connected, slot)) {
         return (-ENOTCONN);
     }
 
@@ -287,6 +302,9 @@ void set_discover_nus_rx(struct conn_state *cs, const struct bt_gatt_attr *attr)
         printk("[ERROR] Discover S7 failed (err %d)\n", err);
         close_connection(find_slot_by_con(cs->conn));
     }
+
+    uint8_t slot = find_slot_by_con(cs->conn);
+    atomic_set_bit(gatt_connected, slot);
 }
 
 /* ========================================================================== */
@@ -468,8 +486,8 @@ static void mtu_exchange_cb(struct bt_conn *conn, uint8_t err,
         printk("[ERROR] MTU exchange failed (err %u)", err);
     } else {
         uint16_t payload_mtu = bt_gatt_get_mtu(conn) - 3;
-        printk("[INFO] MTU exchange successful: ATT MTU %u, payload %u bytes", bt_gatt_get_mtu(conn),
-               payload_mtu);
+        printk("[INFO] MTU exchange successful: ATT MTU %u, payload %u bytes",
+               bt_gatt_get_mtu(conn), payload_mtu);
     }
 }
 
@@ -545,8 +563,10 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
         return;
     }
 
+    atomic_clear_bit(gatt_connected, slot);
     bt_conn_unref(connections[slot].conn);
     connections[slot].conn = NULL;
+    connections[slot].nus_rx_handle = 0;
 
     rb_lock();
     struct helm_node *node = get_rb_node(slot);
@@ -562,9 +582,8 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
         return;
     }
 
-    if (start_scan() < 0) {
-        printk("[ERROR] Failed to resume scanning\n");
-    }
+    /* Restart advertising so we can reconnect */
+    k_work_submit(&adv_restart_work);
 }
 
 /* ========================================================================== */
@@ -623,6 +642,17 @@ static int set_static_address(void)
     return 0;
 }
 
+static void adv_restart(struct k_work *work)
+{
+    ARG_UNUSED(work);
+
+    int err = start_scan();
+    if (err < 0) {
+        printk("[ERROR] Failed to restart advertising (err %d)\n", err);
+        return;
+    }
+}
+
 int initialise_base_gatt(void)
 {
     int err = set_static_address();
@@ -636,6 +666,8 @@ int initialise_base_gatt(void)
         printk("[ERROR] Bluetooth init failed (err %d)\n", err);
         return (err);
     }
+
+    k_work_init(&adv_restart_work, adv_restart);
 
     printk("[INFO] Bluetooth initialized\r\n");
 
