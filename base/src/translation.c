@@ -15,6 +15,7 @@
 #include <zephyr/kernel.h>
 
 #define JSON_UPDATE_MS 5000
+#define KALMAN_WAIT    K_MSEC(10)
 #define STACKSIZE      2048
 #define PRIORITY       6
 
@@ -35,15 +36,15 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
 
     while (1) {
         // Grab data from kalman
-        k_msgq_get(&kalman_msgq, &data, K_FOREVER);
-
-        // Translate into keyboard press
-        enum hid_kbd_code key = translate_into_button(data.magntidue, data.direction);
-        // Pass to HID controller
-        if (key != HID_KEY_G) {
-            k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
+        if (k_msgq_get(&kalman_msgq, &data, KALMAN_WAIT) == 0) {
+            // Translate into keyboard press
+            enum hid_kbd_code key = translate_into_button(data.magntidue, data.direction);
+            // Pass to HID controller
+            if (key != HID_KEY_G) {
+                k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
+            }
         }
-
+        
         // Only send JSON every 5 seconds -> Build JSON packet for PC script
         int64_t current = k_uptime_get();
         if (current - prev < JSON_UPDATE_MS) {
