@@ -14,6 +14,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 
+#define RADIUS  0.115
+
 extern atomic_t is_time_set;
 
 static inline time_t get_time(void)

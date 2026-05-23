@@ -289,9 +289,10 @@ void add_gyro_sample(struct gyro_ring *buf, double sample)
     }
 }
 
-uint8_t gryo_moving_average(struct gyro_ring *buf)
-{
+#define BASE_CASE 0.08
 
+uint8_t gyro_moving_average(struct gyro_ring *buf)
+{
     double sum = 0;
 
     for (uint8_t i = 0; i < buf->count; i++) {
@@ -315,7 +316,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     double avg_gyro;
     double ac;
     double omega;
-    double centripetal;
     int err;
     uint8_t initialised = 0;
     struct kalman results;
@@ -363,15 +363,14 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
             continue;
         }
 
-        if (gryo_moving_average(&buf)) {
-            ukf.x[0] = 0.1;
+        if (gyro_moving_average(&buf)) {
+            ukf.x[0] = BASE_CASE;
         }
 
         omega = ukf.x[0];
-        centripetal = omega * omega * RADIUS;
 
         /* clockwise is negative, anti-clockwise is positive */
-        results.magntidue = centripetal;
+        results.magntidue = (omega * omega * RADIUS) - (BASE_CASE * BASE_CASE * RADIUS);
         if (avg_gyro < 0) {
             results.direction = -1;
         } else {

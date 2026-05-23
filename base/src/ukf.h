@@ -15,7 +15,6 @@
 
 extern uint16_t PULSE_DELAY;
 
-#define RADIUS  0.125
 #define Q_OMEGA 0.1 /* higher value more unreliable system*/
 #define BIAS_A  1e-3
 #define BIAS_B  1e-3

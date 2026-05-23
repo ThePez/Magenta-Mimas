@@ -62,6 +62,7 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
         packet.nodeA.imu = nodeA->imu_data;
         packet.nodeA.id = nodeA->id;
         packet.nodeA.connection_status = nodeA->connection_status;
+
         // Helm B
         nodeB = get_rb_node(1);
         packet.nodeB.bat = nodeB->battery_data;

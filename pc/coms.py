@@ -399,7 +399,7 @@ class SerialReader(QThread):
         node_b_bat = node_b["bat"]
         node_b_timestamp = node_b_bat["timestamp"]
 
-        velocity = data["speed"] * data["direction"]
+        velocity = data["speed"] * data["direction"] / 1000 # This one is in mRad/s
 
         THRESHOLD = 1767225600
 

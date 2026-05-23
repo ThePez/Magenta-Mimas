@@ -6,7 +6,10 @@
 
 #include "common.h"
 #include "json.h"
-#include "zephyr/data/json.h"
+
+#include <math.h>
+
+#include <zephyr/data/json.h>
 
 #define DOUBLE_SCALE 1000
 
@@ -139,7 +142,7 @@ int encode_json_packet(struct json_packet *val, char *buffer, size_t buf_size)
 {
     struct json_wire wire = {
         .direction = val->direction,
-        .speed = val->speed * DOUBLE_SCALE,
+        .speed = sqrt(val->speed / RADIUS) * DOUBLE_SCALE,
         .time = val->time,
     };
 
