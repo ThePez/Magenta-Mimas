@@ -20,7 +20,7 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/toolchain.h>
 
-#define BASE_CASE           0.1
+#define BASE_CASE           0.02 * (GYRO_RING_BUF_SIZE)
 #define PULSE_DELAY_DEFAULT 100
 uint16_t PULSE_DELAY = PULSE_DELAY_DEFAULT;
 
@@ -299,7 +299,7 @@ uint8_t gyro_moving_average(struct gyro_ring *buf)
         sum += fabs(buf->val[i]);
     }
 
-    return (sum < 0.2);
+    return (sum < BASE_CASE);
 }
 
 void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
@@ -362,7 +362,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         if (gyro_moving_average(&buf)) {
             // ukf.x[0] = BASE_CASE;
-            printk("reseting\n");
             ukf_init(&ukf);
             initialised = false;
         }
@@ -372,8 +371,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
         /* clockwise is negative, anti-clockwise is positive */
         results.magntidue = (omega * omega * RADIUS);
 
-        printk("omega: %f\n", omega);
-        printk("sending: %f\n", results.magntidue);
         if (avg_gyro < 0) {
             results.direction = -1;
         } else {
