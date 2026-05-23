@@ -9,6 +9,7 @@
 
 #include "gatt.h"
 #include "imu.h"
+#include <stdint.h>
 
 /* ========================================================================== */
 /* Main                                                                       */
@@ -27,12 +28,14 @@ int main(void)
     }
 
     printk("[INFO] Mobile node initialization complete\n");
-
+    uint8_t timeout = 0;
     while (1) {
-        k_sleep(K_SECONDS(30));
-        if (!am_i_connected()) {
+        (am_i_connected()) ? timeout = 0 : timeout++;
+        if (timeout >= 30) {
             goto reboot;
         }
+
+        k_sleep(K_SECONDS(1));
     }
     
     return (0);
