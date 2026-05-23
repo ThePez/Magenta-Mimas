@@ -11,6 +11,7 @@
 #include "rb_tree.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -339,7 +340,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         if (!initialised) {
             ac = 0.5 * (accelA + accelB);
-            // ac = 0.5 * (fabs(gyroA) + fabs(gyroB));
             if (ac > 0.0) {
                 ukf.x[0] = sqrt(ac / RADIUS);
                 initialised = true;
@@ -356,7 +356,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
             continue;
         }
         err = ukf_update(&ukf, accelA, accelB);
-        // err = ukf_update(&ukf, fabs(gyroA), fabs(gyroB));
         if (err < 0) {
             printk("[ERROR] UKF  Update funtion %d\n", err);
             continue;
@@ -364,13 +363,18 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         if (gyro_moving_average(&buf)) {
             // ukf.x[0] = BASE_CASE;
+            printk("reseting\n");
             ukf_init(&ukf);
+            initialised = false;
         }
 
         omega = ukf.x[0];
 
         /* clockwise is negative, anti-clockwise is positive */
         results.magntidue = (omega * omega * RADIUS) - (BASE_CASE * BASE_CASE * RADIUS);
+
+        printk("omega: %f\n", omega);
+        printk("sending: %f\n", results.magntidue);
         if (avg_gyro < 0) {
             results.direction = -1;
         } else {

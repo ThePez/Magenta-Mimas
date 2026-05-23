@@ -23,7 +23,7 @@ extern uint16_t PULSE_DELAY;
 #define BETA    2.0
 #define KAPPA   0.0
 
-#define GYRO_RING_BUF_SIZE 5
+#define GYRO_RING_BUF_SIZE 10
 
 typedef struct {
     double x[NUM_STATES];              /* state matrix*/
