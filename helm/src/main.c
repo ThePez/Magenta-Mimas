@@ -17,7 +17,7 @@
 
 int main(void)
 {
-    printk("CSSE4011 Project %s Chip\r\n", DEVICE_NAME);
+    printk("[INFO] CSSE4011 Project %s Chip\r\n", DEVICE_NAME);
 
     if (initialise_imu()) {
         goto reboot;

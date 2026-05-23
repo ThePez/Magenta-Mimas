@@ -279,20 +279,21 @@ int ukf_update(ukf_t *ukf, double aA, double aB)
     return (0);
 }
 
-void add_gyro_sample(struct gyro_ring *buf, double sample) {
+void add_gyro_sample(struct gyro_ring *buf, double sample)
+{
 
     buf->val[buf->head] = sample;
     buf->head = (buf->head + 1) % GYRO_RING_BUF_SIZE;
     if (buf->count < GYRO_RING_BUF_SIZE) {
         buf->count++;
     }
-
 }
 
-uint8_t gryo_moving_average(struct gyro_ring *buf) {
+uint8_t gryo_moving_average(struct gyro_ring *buf)
+{
 
     double sum = 0;
-    
+
     for (uint8_t i = 0; i < buf->count; i++) {
         sum += fabs(buf->val[i]);
     }
@@ -319,11 +320,7 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     uint8_t initialised = 0;
     struct kalman results;
 
-    struct gyro_ring buf = {
-        .val = {0},
-        .head = 0,
-        .count = 0
-    };
+    struct gyro_ring buf = {.val = {0}, .head = 0, .count = 0};
 
     ukf_init(&ukf);
 
@@ -341,11 +338,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         rb_unlock();
 
-        // printk("accelA: %f\n", accelA);
-        // printk("accelB: %f\n", accelB);
-        // printk("gyroA: %f\n", gyroA);
-        // printk("gyroB: %f\n", gyroB);
-
         if (!initialised) {
             ac = 0.5 * (accelA + accelB);
             // ac = 0.5 * (fabs(gyroA) + fabs(gyroB));
@@ -361,13 +353,13 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         err = ukf_predict(&ukf);
         if (err < 0) {
-            printk("Error: in predict funtion %d\n", err);
+            printk("[ERROR] UKF Predict funtion %d\n", err);
             continue;
         }
         err = ukf_update(&ukf, accelA, accelB);
         // err = ukf_update(&ukf, fabs(gyroA), fabs(gyroB));
         if (err < 0) {
-            printk("Error: in update funtion %d\n", err);
+            printk("[ERROR] UKF  Update funtion %d\n", err);
             continue;
         }
 
@@ -377,8 +369,6 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
 
         omega = ukf.x[0];
         centripetal = omega * omega * RADIUS;
-        // printk("centripetal acceleration: %f\n", centripetal);
-        // printk("gyroscope: %f\n", avg_gyro);
 
         /* clockwise is negative, anti-clockwise is positive */
         results.magntidue = centripetal;

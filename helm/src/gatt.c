@@ -262,7 +262,6 @@ uint8_t am_i_connected(void)
 int send_data_nus(const void *data, uint16_t len)
 {
     if (current_conn == NULL) {
-        // printk("[INFO] Not connected to any device!\n");
         return (-1);
     }
 

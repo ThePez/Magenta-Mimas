@@ -64,40 +64,40 @@ int initialise_imu(void)
     struct sensor_value gyro_fs_attr;
 
     if (!device_is_ready(lsm6dsl_dev)) {
-        printk("LSM6DSL: device not ready.\n");
+        printk("[ERROR] LSM6DSL: device not ready\n");
         return (-ENODEV);
     }
 
     int ret = sensor_attr_set(lsm6dsl_dev, SENSOR_CHAN_ACCEL_XYZ, SENSOR_ATTR_SAMPLING_FREQUENCY,
                               &frequency_attr);
     if (ret < 0) {
-        printk("Error %d: Cannot set sampling frequency for accelerometer.\n", ret);
+        printk("[ERROR] Cannot set sampling frequency for accelerometer (%d)\n", ret);
         return (ret);
     }
 
     ret = sensor_attr_set(lsm6dsl_dev, SENSOR_CHAN_GYRO_XYZ, SENSOR_ATTR_SAMPLING_FREQUENCY,
                           &frequency_attr);
     if (ret < 0) {
-        printk("Error %d: Cannot set sampling frequency for gyroscope.\n", ret);
+        printk("[ERROR] Cannot set sampling frequency for gyroscope (%d)\n", ret);
         return (ret);
     }
 
     sensor_degrees_to_rad(GYRO_RANGE, &gyro_fs_attr);
     ret = sensor_attr_set(lsm6dsl_dev, SENSOR_CHAN_GYRO_XYZ, SENSOR_ATTR_FULL_SCALE, &gyro_fs_attr);
     if (ret < 0) {
-        printk("Error %d: Cannot set gyroscope full-scale range.\n", ret);
+        printk("[ERROR] Cannot set gyroscope full-scale range (%d)\n", ret);
         return (ret);
     }
 
     ret = sensor_trigger_set(lsm6dsl_dev, &trig, lsm6dsl_trigger_handler);
     if (ret != 0) {
-        printk("Error %d: Could not set sensor type and channel\n", ret);
+        printk("[ERROR] Could not set sensor type and channel (%d)\n", ret);
         return (ret);
     }
 
     ret = sensor_sample_fetch(lsm6dsl_dev);
     if (ret < 0) {
-        printk("Error %d: Sensor sample update error\n", ret);
+        printk("[ERROR] Sensor sample update error\n (%d)", ret);
         return (ret);
     }
 

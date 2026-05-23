@@ -74,7 +74,6 @@ static bool kb_ready;        /* true once the HID interface is enumerated */
 
 static void kb_iface_ready(const struct device *dev, const bool ready)
 {
-    // printk("HID device %s interface is %s\n", dev->name, ready ? "ready" : "not ready");
     kb_ready = ready;
 }
 
@@ -130,17 +129,17 @@ static struct hid_device_ops kb_ops = {
 /* USB stack event callback - enables/disables the device on VBUS attach/detach */
 static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const msg)
 {
-    printk("USBD message: %s\n", usbd_msg_type_string(msg->type));
+    printk("[INFO] USBD message: %s\n", usbd_msg_type_string(msg->type));
 
     if (usbd_can_detect_vbus(ctx)) {
         if (msg->type == USBD_MSG_VBUS_READY) {
             if (usbd_enable(ctx)) {
-                printk("Failed to enable device support\n");
+                printk("[ERROR] Failed to enable device support\n");
             }
         }
         if (msg->type == USBD_MSG_VBUS_REMOVED) {
             if (usbd_disable(ctx)) {
-                printk("Failed to disable device support\n");
+                printk("[ERROR] Failed to disable device support\n");
             }
         }
     }

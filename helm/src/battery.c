@@ -23,7 +23,7 @@ static const struct device *const xiao_battery = DEVICE_DT_GET_ONE(xiao_battery)
 int get_battery_voltage(double *value)
 {
     if (!device_is_ready(xiao_battery)) {
-        printk("Error - unable to get xiao battery\n");
+        printk("[ERROR] Unable to get xiao battery\n");
         return (-1);
     }
 
@@ -38,7 +38,7 @@ int get_battery_voltage(double *value)
 int get_battery_charge(int32_t *value)
 {
     if (!device_is_ready(xiao_battery)) {
-        printk("Error - unable to get xiao battery\n");
+        printk("[ERROR] Unable to get xiao battery\n");
         return (-1);
     }
 

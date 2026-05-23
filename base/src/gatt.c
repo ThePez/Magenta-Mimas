@@ -333,7 +333,7 @@ static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *at
 
     /* attr == NULL means this stage found nothing */
     if (!attr) {
-        printk("Discover complete\n");
+        printk("[INFO] Discover complete\n");
         (void)memset(params, 0, sizeof(*params));
         return (BT_GATT_ITER_STOP);
     }
@@ -457,7 +457,7 @@ static void update_data_length(struct bt_conn *conn)
 
 static void on_le_data_len_updated(struct bt_conn *conn, struct bt_conn_le_data_len_info *info)
 {
-    printk("Data length updated: TX %u bytes (%u us), RX %u bytes (%u us)", info->tx_max_len,
+    printk("[INFO] Data length updated: TX %u bytes (%u us), RX %u bytes (%u us)", info->tx_max_len,
            info->tx_max_time, info->rx_max_len, info->rx_max_time);
 }
 
@@ -468,7 +468,7 @@ static void mtu_exchange_cb(struct bt_conn *conn, uint8_t err,
         printk("[ERROR] MTU exchange failed (err %u)", err);
     } else {
         uint16_t payload_mtu = bt_gatt_get_mtu(conn) - 3;
-        printk("MTU exchange successful: ATT MTU %u, payload %u bytes", bt_gatt_get_mtu(conn),
+        printk("[INFO] MTU exchange successful: ATT MTU %u, payload %u bytes", bt_gatt_get_mtu(conn),
                payload_mtu);
     }
 }
@@ -616,7 +616,7 @@ static int set_static_address(void)
 {
     int err = bt_id_create((bt_addr_le_t *)&base_addr, NULL);
     if (err < 0) {
-        printk("Failed to create identity: %d\n", err);
+        printk("[ERROR] Failed to create identity: %d\n", err);
         return err;
     }
 
@@ -641,7 +641,7 @@ int initialise_base_gatt(void)
 
     err = start_scan(); /* STEP 1 for GATT process */
     if (err < 0) {
-        printk("Initial scan failed (err %d)\n", err);
+        printk("[ERROR] Initial scan failed (err %d)\n", err);
         return (err);
     }
 
