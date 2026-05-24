@@ -6,6 +6,7 @@
 
 #include "gatt.h"
 
+#include "imu.h"
 #include "mac.h"
 #include "common.h"
 
@@ -159,6 +160,9 @@ static void connected(struct bt_conn *conn, uint8_t err)
     connect_time = k_uptime_get();
     printk("[INFO] Connected\n");
 
+    // Turn on the IMU now that ble is connected
+    resume_imu();
+
     /* Start timeout watchdog - 10 seconds */
     k_work_reschedule(&timeout_work, ACK_TIMEOUT);
 }
@@ -174,6 +178,9 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     }
 
     k_work_cancel_delayable(&timeout_work);
+
+    // Turn off the IMU as ble is not connected anymore
+    susspend_imu();
 
     /* Restart advertising so base can reconnect */
     k_work_submit(&adv_restart_work);
