@@ -390,35 +390,37 @@ class SerialReader(QThread):
 
     def dashboard_data(self, data: dict) -> None:
         velocity = data["speed"] * data["direction"] / 1000 # This one is in mRad/s
+        THRESHOLD = 1767225600
+        
+        if THRESHOLD < data["time"]:
+            conn = [
+                (Point("node_conn")
+                .tag("location", "node_a")
+                .field("conn", data["nodeA"]["connection_status"])),
 
-        conn = [
-            (Point("node_conn")
-            .tag("location", "node_a")
-            .field("conn", data["nodeA"]["connection_status"])),
+                (Point("node_conn")
+                .tag("location", "node_b")
+                .field("conn", data["nodeB"]["connection_status"]))
+            ]
+            helm = Point("helm").tag("location", "helm").field("velocity", velocity)
 
-            (Point("node_conn")
-            .tag("location", "node_b")
-            .field("conn", data["nodeB"]["connection_status"]))
-        ]
+            write_api.write(bucket=influx_bucket, org=influx_org, record=conn, write_precision=WritePrecision.S)
+            write_api.write(bucket=influx_bucket, org=influx_org, record=helm, write_precision=WritePrecision.S)
 
-        bat = [
-            (Point("node_bat")
-            .tag("location", "node_a")
-            .field("mv", data["nodeA"]["bat"]["bat_mv"])
-            .field("chg", data["nodeA"]["bat"]["bat_charge"])),
+        if THRESHOLD < data["nodeA"]["bat"]["timestamp"]:
+            bat_a = (Point("node_bat")
+                .tag("location", "node_a")
+                .field("mv", data["nodeA"]["bat"]["bat_mv"])
+                .field("chg", data["nodeA"]["bat"]["bat_charge"]))
+            write_api.write(bucket=influx_bucket, org=influx_org, record=bat_a, write_precision=WritePrecision.S)
 
-            (Point("node_bat")
-            .tag("location", "node_b")
-            .field("mv", data["nodeB"]["bat"]["bat_mv"])
-            .field("chg", data["nodeB"]["bat"]["bat_charge"]))
-        ] 
+        if THRESHOLD < data["nodeB"]["bat"]["timestamp"]:
+            bat_b = (Point("node_bat")
+                .tag("location", "node_b")
+                .field("mv", data["nodeB"]["bat"]["bat_mv"])
+                .field("chg", data["nodeB"]["bat"]["bat_charge"]))
+            write_api.write(bucket=influx_bucket, org=influx_org, record=bat_b, write_precision=WritePrecision.S)
 
-
-        helm = Point("helm").tag("location", "helm").field("velocity", velocity)
-
-        write_api.write(bucket=influx_bucket, org=influx_org, record=conn, write_precision=WritePrecision.S)
-        write_api.write(bucket=influx_bucket, org=influx_org, record=bat, write_precision=WritePrecision.S)
-        write_api.write(bucket=influx_bucket, org=influx_org, record=helm, write_precision=WritePrecision.S)
 
     def run(self) -> None:
         """
