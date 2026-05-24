@@ -6,7 +6,6 @@
 
 #include "battery.h"
 
-#include <zephyr/shell/shell.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 
@@ -49,38 +48,3 @@ int get_battery_charge(int32_t *value)
     *value = sensor_charge.val1;
     return (0);
 }
-
-/* ========================================================================== */
-/* Shell commands                                                             */
-/* ========================================================================== */
-
-static int cmd_bat_voltage_read(const struct shell *sh, size_t argc, char **argv)
-{
-    double voltage = 0;
-
-    if (get_battery_voltage(&voltage) < 0) {
-        return (-1);
-    }
-
-    shell_print(sh, "Voltage reading: %.3fV", voltage);
-    return (0);
-}
-
-static int cmd_bat_charge_read(const struct shell *sh, size_t argc, char **argv)
-{
-    int32_t charge = 0;
-
-    if (get_battery_charge(&charge) < 0) {
-        return (-1);
-    }
-
-    shell_print(sh, "Charge reading: %d%%", charge);
-    return (0);
-}
-
-SHELL_STATIC_SUBCMD_SET_CREATE(battery_cmds,
-                               SHELL_CMD(voltage, NULL, "Read voltage", cmd_bat_voltage_read),
-                               SHELL_CMD(charge, NULL, "Read charge", cmd_bat_charge_read),
-                               SHELL_SUBCMD_SET_END);
-
-SHELL_CMD_REGISTER(battery, &battery_cmds, "Battery commands", NULL);
