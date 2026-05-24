@@ -12,5 +12,7 @@
 extern struct k_msgq imu_q;
 
 int initialise_imu(void);
+int susspend_imu(void);
+int resume_imu(void);
 
 #endif

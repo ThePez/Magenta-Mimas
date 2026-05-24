@@ -18,7 +18,7 @@
 #include "ukf.h"
 
 #define ONE_MIN         60000
-#define CONN_TIMEOUT_MS 30000
+#define CONN_TIMEOUT_MS 60000
 
 /* ========================================================================== */
 /* ENTRY POINT                                                                */
