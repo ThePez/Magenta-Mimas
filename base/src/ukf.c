@@ -24,7 +24,7 @@
 #define PULSE_DELAY_DEFAULT 100
 uint16_t PULSE_DELAY = PULSE_DELAY_DEFAULT;
 
-K_MSGQ_DEFINE(kalman_msgq, sizeof(struct kalman), 5, 4);
+// K_MSGQ_DEFINE(kalman_msgq, sizeof(struct kalman), 5, 4);
 
 void ukf_init(ukf_t *ukf)
 {
@@ -380,4 +380,4 @@ void thread_kalman(void *dummy1, void *dummy2, void *dummy3)
     }
 }
 
-K_THREAD_DEFINE(kalman_thread, 8192, thread_kalman, NULL, NULL, NULL, 7, 0, 0);
+// K_THREAD_DEFINE(kalman_thread, 8192, thread_kalman, NULL, NULL, NULL, 7, 0, 0);
