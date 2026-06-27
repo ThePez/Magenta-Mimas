@@ -7,6 +7,7 @@ TagManager:
   - Water
   - Crosshair
   - Audio
+  - InfoScreen
   layers:
   - Default
   - TransparentFX
