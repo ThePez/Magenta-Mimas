@@ -23,7 +23,7 @@ public class PlayerRotateWithInertia : MonoBehaviour
         new(Key.H, Vel1),
         new(Key.J, Vel2),
         new(Key.K, Vel3),
-        new(Key.L, Vel4)
+        new(Key.L, Vel4),
     };
     
     public float Velocity { get; private set; }
