@@ -23,6 +23,7 @@ public class BatteryViewer : MonoBehaviour
         new(Key.Digit8, new Color(212f/255, 245f/255, 66f/255), "80%"),
         new(Key.Digit9, new Color(180f/255, 245f/255, 66f/255), "90%"),
         new(Key.Digit0, new Color(130f/255, 245f/255, 66f/255), "100%"),
+        new(Key.N, Color.darkGray, "D.C")
     };
 
     private TMP_Text batteryText;
