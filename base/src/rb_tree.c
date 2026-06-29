@@ -255,30 +255,31 @@ void thread_rb(void *arg1, void *arg2, void *arg3)
     struct ble_packet packet;
 
     while (1) {
-        uint8_t received_mask = 0;
+        // uint8_t received_mask = 0;
         // Drain all packets from the queue until a sensor packet from both nodes has been received
-        while (received_mask != RECEIVED_MASK) {
-            if (k_msgq_get(&gatt_msg_queue, &packet, K_FOREVER) == 0) {
-                rb_lock();
-                node = get_rb_node(packet.node_num);
-                if (node != NULL) {
-                    switch (packet.packet_id) {
-                    case SENSOR:
-                        node->imu_data = packet.data.imu;
-                        received_mask |= BIT(packet.node_num);
-                        break;
-                    case BATTERY:
-                        node->battery_data = packet.data.bat;
-                        break;
-                    }
+        // while (received_mask != RECEIVED_MASK) {
+        if (k_msgq_get(&gatt_msg_queue, &packet, K_FOREVER) == 0) {
+            rb_lock();
+            node = get_rb_node(packet.node_num);
+            if (node != NULL) {
+                switch (packet.packet_id) {
+                case SENSOR:
+                    node->imu_data = packet.data.imu;
+                    // received_mask |= BIT(packet.node_num);
+                    k_sem_give(&sensor_semaphore);
+                    break;
+                case BATTERY:
+                    node->battery_data = packet.data.bat;
+                    break;
                 }
-
-                rb_unlock();
             }
+
+            rb_unlock();
         }
+        // }
 
         // Once a sensor packet from both nodes has been received -> give semaphore
-        k_sem_give(&sensor_semaphore);
+        // k_sem_give(&sensor_semaphore);
     }
 }
 

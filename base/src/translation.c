@@ -13,7 +13,8 @@
 #include <zephyr/kernel.h>
 #include <math.h>
 
-#define JSON_UPDATE_MS 5000
+#define BAT_UPDATE_MS 45000 // 45 seconds
+#define JSON_UPDATE_MS 60000 // 60 seconds
 #define KALMAN_WAIT    K_MSEC(10)
 #define STACKSIZE      2048
 #define PRIORITY       6
@@ -26,11 +27,10 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    struct helm_node *nodeA;
-    struct helm_node *nodeB;
-    struct json_packet packet = {0};
-
     int64_t prev = 0;
+    int64_t prev_bat = 0;
+
+    int32_t charge = -1;
 
     // Gyro Speed and direction
     double speed = 0;
@@ -39,13 +39,11 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
     while (1) {
         if (k_sem_take(&sensor_semaphore, K_MSEC(10)) == 0) {
             rb_lock();
-            struct helm_node *helm_a = get_rb_node(0);
-            struct helm_node *helm_b = get_rb_node(1);
-            double gyroA = helm_a->imu_data.gyro_rads;
-            double gyroB = helm_b->imu_data.gyro_rads;
+            struct helm_node *node = get_rb_node(0);
+            speed = node->imu_data.gyro_rads;
+            node = NULL;
             rb_unlock();
 
-            speed = 0.5 * (gyroA + gyroB);
             direction = (speed < 0) ? -1 : 1;
             // Translate into keyboard press
             enum hid_kbd_code key = translate_into_button(fabs(speed), direction);
@@ -55,40 +53,45 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
             }
         }
 
-        // Only send JSON every 5 seconds -> Build JSON packet for PC script
-        int64_t current = k_uptime_get();
-        if (current - prev < JSON_UPDATE_MS) {
-            continue;
+        int64_t current_bat = k_uptime_get();
+        if (current_bat - prev_bat > BAT_UPDATE_MS && charge > 0) {
+            prev_bat = current_bat;
+
+            // Pass the battery % to HID thread
+            enum hid_kbd_code key = translate_bat_to_button(charge);
+            k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
         }
 
-        prev = current;
+        // Only send JSON every 60 seconds -> Build JSON packet for PC script
+        int64_t current = k_uptime_get();
+        if (current - prev > JSON_UPDATE_MS) {
+            prev = current;
 
-        // Grab tree stuff
-        rb_lock();
+            struct json_packet packet = {0};
 
-        // Helm A
-        nodeA = get_rb_node(0);
-        packet.nodeA.bat = nodeA->battery_data;
-        packet.nodeA.imu = nodeA->imu_data;
-        packet.nodeA.id = nodeA->id;
-        packet.nodeA.connection_status = nodeA->connection_status;
+            // Grab tree stuff
+            rb_lock();
 
-        // Helm B
-        nodeB = get_rb_node(1);
-        packet.nodeB.bat = nodeB->battery_data;
-        packet.nodeB.imu = nodeB->imu_data;
-        packet.nodeB.id = nodeB->id;
-        packet.nodeB.connection_status = nodeB->connection_status;
+            struct helm_node *node = get_rb_node(0);        
+            packet.nodeA.bat = node->battery_data;
+            packet.nodeA.imu = node->imu_data;
+            packet.nodeA.id = node->id;
+            packet.nodeA.connection_status = node->connection_status;
+            node = NULL;
 
-        rb_unlock();
+            rb_unlock();
 
-        // timestamp the creation of this json_packet
-        packet.time = get_time();
+            // Update most recent battery %
+            charge = packet.nodeA.bat.bat_charge;
 
-        // Fill in remaining items
-        packet.direction = direction;
-        packet.speed = speed;
-        k_msgq_put(&trans_queue, &packet, K_NO_WAIT);
+            // timestamp the creation of this json_packet
+            packet.time = get_time();
+
+            // Fill in remaining items
+            packet.direction = direction;
+            packet.speed = speed;
+            k_msgq_put(&trans_queue, &packet, K_NO_WAIT);
+        }
     }
 }
 

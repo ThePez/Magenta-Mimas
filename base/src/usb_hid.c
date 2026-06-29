@@ -25,10 +25,10 @@
 #define HID_THREAD_PRIORITY 5
 
 // Speed options for keyboard output
-#define THRESHOLD_A 3 
-#define THRESHOLD_B 10
-#define THRESHOLD_C 20
-#define THRESHOLD_D 40
+#define THRESHOLD_A 500
+#define THRESHOLD_B 1500
+#define THRESHOLD_C 3000
+#define THRESHOLD_D 4500
 
 // Keyboard output options
 #define SPEED_0_DIR_0 BIT(0) /* 1  */
@@ -46,6 +46,12 @@
 
 /* Standard HID boot-keyboard report descriptor */
 static const uint8_t hid_report_desc[] = HID_KEYBOARD_REPORT_DESC();
+
+/* Battery percentage key-mapping lookup table */
+static const enum hid_kbd_code bat_keys[] = {
+    HID_KEY_1, HID_KEY_2, HID_KEY_3, HID_KEY_4, HID_KEY_5,
+    HID_KEY_6, HID_KEY_7, HID_KEY_8, HID_KEY_9, HID_KEY_0,
+};
 
 /* Byte offsets within the 8-byte USB HID keyboard report */
 enum kb_report_idx {
@@ -152,7 +158,7 @@ static void msg_cb(struct usbd_context *const ctx, const struct usbd_msg *const 
 /* Map the inputs of speed and direction to 8 different output keys */
 enum hid_kbd_code translate_into_button(double speed, int8_t direction)
 {
-    speed *= 8;
+    speed *= 1000;
 
     if (speed < THRESHOLD_A) {
         return HID_KEY_G;
@@ -194,6 +200,14 @@ enum hid_kbd_code translate_into_button(double speed, int8_t direction)
         // Shouldn't be possible
         return HID_KEY_G;
     }
+}
+
+enum hid_kbd_code translate_bat_to_button(double val)
+{
+    int idx = (int)(val / 10.0);
+    // Clamp between 0-9
+    idx = (idx <= 0) ? 0 : (idx > 9) ? 9 : idx;
+    return bat_keys[idx];
 }
 
 /* ========================================================================== */

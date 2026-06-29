@@ -22,8 +22,6 @@
 
 /* ========================================================================== */
 /* ENTRY POINT                                                                */
-/* Initialise BT then kick off step 1. Everything else is                     */
-/* event driven from the BT stack callbacks.                                  */
 /* ========================================================================== */
 int main(void)
 {
@@ -48,8 +46,8 @@ int main(void)
 
         rb_lock();
         struct helm_node *nodeA = get_rb_node(0);
-        struct helm_node *nodeB = get_rb_node(1);
-        int both_connected = nodeA && nodeB && nodeA->connection_status && nodeB->connection_status;
+        // struct helm_node *nodeB = get_rb_node(1);
+        int both_connected = nodeA && nodeA->connection_status; // && nodeB &&nodeB->connection_status;
         rb_unlock();
 
         if (both_connected) {

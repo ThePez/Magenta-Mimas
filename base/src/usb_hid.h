@@ -11,6 +11,7 @@
 #include "zephyr/usb/class/hid.h"
 
 enum hid_kbd_code translate_into_button(double speed, int8_t direction);
+enum hid_kbd_code translate_bat_to_button(double val);
 
 extern struct k_msgq hid_key_msgq;
 
