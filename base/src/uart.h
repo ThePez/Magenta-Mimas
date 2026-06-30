@@ -12,6 +12,9 @@
 #ifdef UART_USB_C
 
 #include <stdio.h>
+#include <stdint.h>
+
+extern uint16_t PULSE_DELAY;
 
 int uart_send(const char *buf, size_t len);
 int print_uart(const char *str);

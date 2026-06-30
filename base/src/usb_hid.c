@@ -30,6 +30,8 @@
 #define THRESHOLD_C 3000
 #define THRESHOLD_D 4500
 
+#define KEY_PRESS_MS 20
+
 // Keyboard output options
 #define SPEED_0_DIR_0 BIT(0) /* 1  */
 #define SPEED_1_DIR_0 BIT(1) /* 2  */
@@ -269,7 +271,7 @@ static void hid_thread(void *p1, void *p2, void *p3)
             printk("[WARN] HID submit error (key down)\n");
         }
 
-        k_msleep(PULSE_DELAY);
+        k_msleep(KEY_PRESS_MS);
 
         report[KB_KEY_CODE1] = 0;
         if (hid_device_submit_report(hid_dev, KB_REPORT_COUNT, report)) {

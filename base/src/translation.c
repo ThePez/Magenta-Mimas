@@ -12,8 +12,9 @@
 
 #include <zephyr/kernel.h>
 #include <math.h>
+#include <stdint.h>
 
-#define BAT_UPDATE_MS 45000 // 45 seconds
+#define BAT_UPDATE_MS  45000 // 45 seconds
 #define JSON_UPDATE_MS 60000 // 60 seconds
 #define KALMAN_WAIT    K_MSEC(10)
 #define STACKSIZE      2048
@@ -31,6 +32,7 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
     int64_t prev_bat = 0;
 
     int32_t charge = -1;
+    uint8_t connected = 0;
 
     // Gyro Speed and direction
     double speed = 0;
@@ -41,6 +43,8 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
             rb_lock();
             struct helm_node *node = get_rb_node(0);
             speed = node->imu_data.gyro_rads;
+            connected = node->connection_status;
+            charge = node->battery_data.bat_charge;
             node = NULL;
             rb_unlock();
 
@@ -54,11 +58,10 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
         }
 
         int64_t current_bat = k_uptime_get();
-        if (current_bat - prev_bat > BAT_UPDATE_MS && charge > 0) {
+        if (current_bat - prev_bat > BAT_UPDATE_MS) {
             prev_bat = current_bat;
-
-            // Pass the battery % to HID thread
-            enum hid_kbd_code key = translate_bat_to_button(charge);
+            enum hid_kbd_code key =
+                (connected && charge > 0) ? translate_bat_to_button(charge) : HID_KEY_N;
             k_msgq_put(&hid_key_msgq, &key, K_NO_WAIT);
         }
 
@@ -72,7 +75,7 @@ void thread_trans(void *arg1, void *arg2, void *arg3)
             // Grab tree stuff
             rb_lock();
 
-            struct helm_node *node = get_rb_node(0);        
+            struct helm_node *node = get_rb_node(0);
             packet.nodeA.bat = node->battery_data;
             packet.nodeA.imu = node->imu_data;
             packet.nodeA.id = node->id;

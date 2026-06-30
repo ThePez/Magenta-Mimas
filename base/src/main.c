@@ -15,7 +15,7 @@
 #include "common.h"
 #include "gatt.h"
 #include "rb_tree.h"
-#include "ukf.h"
+#include "uart.h"
 
 #define ONE_MIN         60000
 #define CONN_TIMEOUT_MS 60000
@@ -38,21 +38,20 @@ int main(void)
     }
 
     struct cmd_ble_packet packet = {0};
-    int64_t last_both_connected = k_uptime_get();
-    int64_t prev = last_both_connected;
+    int64_t last_connected = k_uptime_get();
+    int64_t prev = last_connected;
 
     while (1) {
         int64_t current = k_uptime_get();
 
         rb_lock();
-        struct helm_node *nodeA = get_rb_node(0);
-        // struct helm_node *nodeB = get_rb_node(1);
-        int both_connected = nodeA && nodeA->connection_status; // && nodeB &&nodeB->connection_status;
+        struct helm_node *node = get_rb_node(0);
+        int connected = node && node->connection_status;
         rb_unlock();
 
-        if (both_connected) {
-            last_both_connected = current;
-        } else if ((current - last_both_connected) > CONN_TIMEOUT_MS) {
+        if (connected) {
+            last_connected = current;
+        } else if ((current - last_connected) > CONN_TIMEOUT_MS) {
             goto reboot;
         }
 

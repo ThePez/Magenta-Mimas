@@ -38,6 +38,9 @@ atomic_t is_time_set = ATOMIC_INIT(0);
 #define TX_BUF_SIZE   (BUFFER_SIZE * 2)
 #define RX_BUF_SIZE   BUFFER_SIZE
 
+#define PULSE_DELAY_DEFAULT 100
+uint16_t PULSE_DELAY = PULSE_DELAY_DEFAULT;
+
 /* ========================================================================== */
 /* Static Data                                                                */
 /* ========================================================================== */
