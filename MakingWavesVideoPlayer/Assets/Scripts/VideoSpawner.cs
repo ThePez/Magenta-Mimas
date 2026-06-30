@@ -57,6 +57,7 @@ public class VideoSpawner : MonoBehaviour
             GameObject screen = Instantiate(screenPrefab, sphere.transform);
             screen.transform.localPosition = Vector3.up * planeHeight;
             screen.transform.LookAt(mainCamera?.transform);
+            screen.transform.localPosition += Vector3.forward * 0.5f;
 
             AddVideoPlayerToScreen(screen, mp4Files[i]);
         }
