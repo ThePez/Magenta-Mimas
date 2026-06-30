@@ -26,7 +26,6 @@ public class CameraViewVideo : MonoBehaviour
     private AudioSource waterAudio;
     
     private RawImage crosshair;
-    private IEnumerable<TMP_Text> batteryViews;
 
     void Start()
     {
@@ -38,7 +37,6 @@ public class CameraViewVideo : MonoBehaviour
         playerRotation = player.GetComponent<PlayerRotateWithInertia>();
         
         crosshair = GameObject.FindGameObjectWithTag("Crosshair").GetComponent<RawImage>();
-        batteryViews = GameObject.FindGameObjectsWithTag("Battery").Select(obj => obj.GetComponent<TMP_Text>());
         waterAudio = GameObject.FindGameObjectWithTag("Audio").GetComponent<AudioSource>();
     }
 
@@ -108,19 +106,11 @@ public class CameraViewVideo : MonoBehaviour
         mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, newZoom, Time.deltaTime);
 
         float alpha = viewing ? 0 : 1;
-        float lerpAlpha = Mathf.Lerp(crosshair.color.a, alpha, Time.deltaTime);
-        
+      
         Color crosshairColor = crosshair.color;
-        crosshairColor.a = lerpAlpha;
+        crosshairColor.a = Mathf.Lerp(crosshair.color.a, alpha, Time.deltaTime);
         crosshair.color = crosshairColor;
         
-        foreach (TMP_Text batteryView in batteryViews)
-        {
-            Color color = batteryView.color;
-            color.a = lerpAlpha;
-            batteryView.color = color;
-        }
-
         float volume = viewing ? 0 : 0.4f ;
         waterAudio.volume = Mathf.Lerp(waterAudio.volume, volume, Time.deltaTime);
 

@@ -4,11 +4,11 @@ using UnityEngine.InputSystem;
 public class InfoPanel : MonoBehaviour
 {
     private bool CurrentlyVisible { get; set; }
-    private GameObject infoPanel;
+    private CanvasGroup infoPanelGroup;
 
     void Start()
     {
-        infoPanel = transform.Find("Panel").gameObject;
+        infoPanelGroup = gameObject.GetComponent<CanvasGroup>();
     }
 
     // Update is called once per frame
@@ -17,7 +17,7 @@ public class InfoPanel : MonoBehaviour
         if (Keyboard.current != null && Keyboard.current.f1Key.wasPressedThisFrame)
         {
             CurrentlyVisible = !CurrentlyVisible;
-            infoPanel.SetActive(CurrentlyVisible);
+            infoPanelGroup.alpha = CurrentlyVisible ? 1 : 0;
         }
     }
 }
